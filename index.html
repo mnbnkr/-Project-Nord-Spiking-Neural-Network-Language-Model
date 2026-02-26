@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Architecture of Project Nord</title>
+    <title>Inside Project Nord: An SNN Walkthrough</title>
     <style>
       /* ==========================================================================
            1. THEME & VARIABLES (Muted, Unassuming, Auto Light/Dark)
@@ -13,22 +13,25 @@
         --bg-page: #fafaf9; /* Warm off-white */
         --bg-card: #ffffff;
         --bg-panel: #f5f5f4;
+        --bg-panel-hover: #e7e5e4;
 
         --text-main: #292524; /* Warm dark gray */
         --text-muted: #78716c;
+        --text-faint: #a8a29e;
 
-        --accent-blue: #7dd3fc;
-        --accent-blue-text: #0284c7;
-        --accent-teal: #5eead4;
-        --accent-teal-text: #0d9488;
-        --accent-coral: #fca5a5;
-        --accent-coral-text: #e11d48;
+        /* Muted Accents */
+        --accent-teal: #14b8a6;
+        --accent-teal-glow: rgba(20, 184, 166, 0.2);
+        --accent-coral: #f43f5e;
+        --accent-blue: #3b82f6;
+        --accent-amber: #f59e0b;
 
         --border-color: #e7e5e4;
-        --shadow-soft: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        --border-strong: #d6d3d1;
+        --shadow-soft: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
 
-        --font-sans: "Inter", system-ui, sans-serif;
-        --font-mono: "JetBrains Mono", "Fira Code", monospace;
+        --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+        --font-mono: "JetBrains Mono", "Fira Code", "Courier New", monospace;
       }
 
       @media (prefers-color-scheme: dark) {
@@ -37,24 +40,27 @@
           --bg-page: #1c1917; /* Warm almost-black */
           --bg-card: #292524;
           --bg-panel: #221f1e;
+          --bg-panel-hover: #352f2d;
 
           --text-main: #f5f5f4;
           --text-muted: #a8a29e;
+          --text-faint: #57534e;
 
-          --accent-blue: #0284c7;
-          --accent-blue-text: #7dd3fc;
-          --accent-teal: #0d9488;
-          --accent-teal-text: #5eead4;
-          --accent-coral: #e11d48;
-          --accent-coral-text: #fca5a5;
+          /* Muted Accents */
+          --accent-teal: #2dd4bf;
+          --accent-teal-glow: rgba(45, 212, 191, 0.15);
+          --accent-coral: #fb7185;
+          --accent-blue: #60a5fa;
+          --accent-amber: #fbbf24;
 
           --border-color: #44403c;
-          --shadow-soft: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+          --border-strong: #57534e;
+          --shadow-soft: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
         }
       }
 
       /* ==========================================================================
-           2. GLOBAL STYLES
+           2. GLOBAL TYPOGRAPHY & LAYOUT
            ========================================================================== */
       * {
         box-sizing: border-box;
@@ -66,538 +72,515 @@
         background-color: var(--bg-page);
         color: var(--text-main);
         font-family: var(--font-sans);
-        line-height: 1.6;
+        line-height: 1.7;
         transition:
-          background-color 0.3s,
-          color 0.3s;
+          background-color 0.4s ease,
+          color 0.4s ease;
+        overflow-x: hidden;
       }
 
       .container {
-        max-width: 760px;
+        max-width: 800px;
         margin: 0 auto;
         padding: 0 24px;
       }
 
       h1 {
-        font-size: clamp(2rem, 5vw, 3rem);
+        font-size: clamp(2.2rem, 5vw, 3.5rem);
         font-weight: 800;
-        letter-spacing: -0.03em;
-        margin-bottom: 1rem;
+        letter-spacing: -0.04em;
+        margin-bottom: 1.5rem;
+        line-height: 1.1;
       }
       h2 {
-        font-size: 1.5rem;
+        font-size: 1.75rem;
         font-weight: 700;
-        margin-top: 3rem;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 0.5rem;
+        margin-top: 4rem;
+        margin-bottom: 1.5rem;
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 12px;
       }
       h3 {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
         font-weight: 600;
-        margin-top: 1.5rem;
-        margin-bottom: 0.5rem;
-        color: var(--text-muted);
+        margin-top: 2rem;
+        margin-bottom: 0.75rem;
+        color: var(--text-main);
       }
       p {
-        margin-bottom: 1.25rem;
+        margin-bottom: 1.5rem;
         font-size: 1.05rem;
+        color: var(--text-muted);
+      }
+
+      .highlight {
+        color: var(--text-main);
+        font-weight: 500;
       }
 
       .code-inline {
         background: var(--bg-panel);
-        padding: 2px 6px;
+        padding: 3px 6px;
         border-radius: 6px;
         font-family: var(--font-mono);
         font-size: 0.85em;
+        color: var(--text-main);
+        border: 1px solid var(--border-color);
+      }
+
+      .code-block {
+        background: var(--bg-panel);
+        padding: 16px;
+        border-radius: 12px;
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
         color: var(--text-muted);
         border: 1px solid var(--border-color);
+        overflow-x: auto;
+        margin-bottom: 1.5rem;
       }
 
       .card {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
-        border-radius: 20px;
-        padding: 32px;
-        margin: 2rem 0;
+        border-radius: 24px;
+        padding: 40px;
+        margin: 3rem 0;
         box-shadow: var(--shadow-soft);
-      }
-
-      .card-title {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 16px;
+        position: relative;
       }
 
       .step-num {
-        background: var(--accent-blue);
-        color: var(--bg-page);
-        width: 28px;
-        height: 28px;
+        background: var(--bg-panel);
+        color: var(--text-muted);
+        border: 1px solid var(--border-strong);
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
-        font-size: 0.9rem;
+        font-family: var(--font-mono);
+        font-size: 1rem;
       }
 
       /* ==========================================================================
-           3. INTERACTIVE VISUALIZATIONS
+           3. VISUALIZATION CONTAINERS
            ========================================================================== */
-
-      /* Vis 1: Multi-Scale Time */
-      .timeline-track {
-        height: 40px;
-        background: var(--bg-panel);
-        border-radius: 10px;
-        position: relative;
-        margin-bottom: 12px;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        padding: 0 10px;
-      }
-      .pulse {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        position: absolute;
-        background: var(--accent-teal);
-        animation: moveRight linear infinite;
-      }
-      .pulse.slow {
-        width: 40px;
-        border-radius: 6px;
-        background: var(--accent-blue);
-        animation-duration: 4s;
-      }
-      @keyframes moveRight {
-        0% {
-          left: -50px;
-          opacity: 0;
-        }
-        20% {
-          opacity: 1;
-        }
-        80% {
-          opacity: 1;
-        }
-        100% {
-          left: 100%;
-          opacity: 0;
-        }
-      }
-
-      /* Vis 2: Associative Cascade (The Ring) */
-      .ring-container {
-        position: relative;
-        width: 280px;
-        height: 280px;
-        margin: 2rem auto;
-      }
-      .cluster-node {
-        position: absolute;
-        width: 14px;
-        height: 14px;
-        background: var(--border-color);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        transition:
-          background 0.3s,
-          transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        cursor: pointer;
-      }
-      .cluster-node:hover {
-        transform: translate(-50%, -50%) scale(1.5);
-      }
-      .cluster-node.active {
-        background: var(--accent-teal-text);
-        transform: translate(-50%, -50%) scale(1.8);
-        z-index: 10;
-        box-shadow: 0 0 10px var(--accent-teal);
-      }
-      .cluster-node.neighbor-1 {
-        background: var(--accent-teal);
-        transform: translate(-50%, -50%) scale(1.4);
-      }
-      .cluster-node.neighbor-2 {
-        background: var(--accent-blue-text);
-        transform: translate(-50%, -50%) scale(1.2);
-      }
-      .cluster-node.neighbor-3 {
-        background: var(--accent-blue);
-        transform: translate(-50%, -50%) scale(1.1);
-      }
-
-      /* Vis 3: Leaky Clamp Chart */
-      .chart-container {
+      .vis-container {
         width: 100%;
-        height: 200px;
         background: var(--bg-panel);
-        border-radius: 12px;
-        position: relative;
-        cursor: crosshair;
         border: 1px solid var(--border-color);
-      }
-      .chart-line {
-        stroke-width: 3;
-        fill: none;
-        stroke-linecap: round;
-      }
-      .chart-relu {
-        stroke: var(--border-color);
-        stroke-dasharray: 6 6;
-      }
-      .chart-leaky {
-        stroke: var(--accent-coral-text);
-      }
-      .chart-axis {
-        stroke: var(--text-muted);
-        stroke-width: 1;
-      }
-      .tooltip {
-        position: absolute;
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-family: var(--font-mono);
-        font-size: 0.8rem;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.2s;
-      }
-
-      /* Vis 4: EMA Readout */
-      .ema-container {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        height: 150px;
-        padding: 20px;
-        background: var(--bg-panel);
-        border-radius: 12px;
-        margin-top: 1rem;
-      }
-      .ema-bar-wrapper {
+        border-radius: 16px;
+        margin: 2rem 0;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
-        width: 8%;
+        justify-content: center;
+        padding: 20px;
+        position: relative;
       }
-      .ema-bar {
+
+      .vis-caption {
         width: 100%;
-        background: var(--border-color);
-        border-radius: 4px 4px 0 0;
-        transition:
-          height 0.5s,
-          background 0.5s;
-      }
-      .ema-label {
+        text-align: center;
         font-family: var(--font-mono);
-        font-size: 0.7rem;
+        font-size: 0.8rem;
         color: var(--text-muted);
+        margin-top: 12px;
+      }
+
+      canvas {
+        display: block;
+        max-width: 100%;
+      }
+
+      /* Time blocks for Step 1 */
+      .time-grid {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        margin: 10px 0;
+      }
+      .time-box {
+        height: 40px;
+        border-radius: 8px;
+        background: var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--text-faint);
+        transition: background 0.3s;
+      }
+      .time-box.active {
+        background: var(--accent-teal);
+        color: #fff;
       }
     </style>
   </head>
   <body>
-    <header style="padding: 80px 0 40px; text-align: center">
+    <header style="padding: 100px 0 60px">
       <div class="container">
         <div
           class="code-inline"
-          style="margin-bottom: 1rem; display: inline-block"
+          style="margin-bottom: 1.5rem; display: inline-block"
         >
-          Project Nord v3.1
+          Project Nord // Architecture Walkthrough
         </div>
-        <h1>A Precise Walkthrough</h1>
-        <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto">
-          No vague analogies. We are going to trace exactly how the tensor math
-          and spiking neurons in <code>nord_core.py</code> process a single
-          word.
+        <h1>Inside the Spiking Neural Network</h1>
+        <p style="font-size: 1.2rem; max-width: 650px">
+          Standard AI models (like GPT) use continuous math, requiring massive
+          compute. Project Nord is a 144M-parameter model that uses
+          <strong>binary spikes</strong> (1s and 0s) over time, remaining
+          <span class="highlight">97% inactive</span> during inference.
+        </p>
+        <p style="font-size: 1.2rem; max-width: 650px">
+          This isn't magic. It's a very specific sequence of tensor operations.
+          Let's trace exactly how the word <strong>"Hello"</strong> travels
+          through the code.
         </p>
       </div>
     </header>
 
     <main class="container">
-      <p>
-        In a standard Transformer, the word "Hello" is turned into a continuous
-        vector (like <code>[0.12, -0.54, 0.99...]</code>) and multiplied through
-        billions of parameters. It's mathematically dense.
-      </p>
-      <p>
-        In Nord, the network is <strong>97% dead space</strong>. It uses 1-bit
-        binary spikes (zeros and ones). To make this actually generate coherent
-        English, it uses a highly specific 6-step pipeline. Let's walk through
-        it.
-      </p>
-
-      <!-- STEP 1: MULTI-SCALE TEMPORAL ENCODER -->
+      <!-- STEP 0: THE TOKEN -->
       <div class="card">
-        <div class="card-title">
+        <h2>
+          <div class="step-num">0</div>
+          The Entry Point: Tokens to Vectors
+        </h2>
+        <p>
+          Before a network can process text, it must become numbers. This step
+          is identical to standard LLMs.
+        </p>
+        <p>
+          When you type "Hello", the
+          <span class="highlight">Tokenizer</span> looks it up in a dictionary
+          of 128,000 words and gives it an ID (e.g.,
+          <code class="code-inline">ID: 9906</code>). Then, the
+          <span class="highlight">Embedding Layer</span> translates that ID into
+          a continuous list of 512 numbers (a vector).
+        </p>
+        <div class="code-block">
+          x = self.embed(token_ids) # Shape:[Batch, Sequence, 512]
+        </div>
+        <p>
+          At this moment, the word "Hello" is just a static block of 512 floats.
+          But Spiking Neural Networks don't process static blocks. They process
+          <em>events over time</em>.
+        </p>
+      </div>
+
+      <!-- STEP 1: MULTI-SCALE ENCODER -->
+      <div class="card">
+        <h2>
           <div class="step-num">1</div>
-          <h2 style="margin: 0; border: none; padding: 0">
-            The Multi-Scale Encoder
-          </h2>
+          Multi-Scale Temporal Encoding
+        </h2>
+        <p>
+          We need to stretch this static vector across time. How many timesteps?
+          If we use 100 steps, the model is too slow. If we use 4 steps, it
+          forgets the beginning of the sentence.
+        </p>
+        <p>
+          <strong>The Nord Solution:</strong> It slices the word into 10
+          timesteps, but uses two different "clocks".
+        </p>
+        <ul
+          style="
+            margin-left: 20px;
+            margin-bottom: 20px;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+          "
+        >
+          <li>
+            <span class="highlight">T_fast = 8:</span> Eight rapid steps. These
+            capture the exact grammar and immediate context of the word.
+          </li>
+          <li>
+            <span class="highlight">T_slow = 2:</span> Two long, slow steps.
+            These act as a compressed "long-term memory" of the conversation.
+          </li>
+        </ul>
+        <div class="code-block">
+          fast_gates = torch.sigmoid(self.fast_basis) # Shape: [8, 512]
+          slow_gates = torch.sigmoid(self.slow_basis) # Shape: [2, 512] current
+          = torch.cat([fast, slow], dim=0) # Total T = 10
         </div>
-        <p>
-          A word isn't a single event; in a Spiking Neural Network (SNN), it has
-          to be spread over <strong>time</strong>. The problem? If you use too
-          many timesteps, the network takes forever to run. If you use too few,
-          it forgets the context of the sentence.
-        </p>
-        <p>
-          <strong>The Fix:</strong> <code>TemporalSpikeEncoder</code>. Nord
-          takes the word and splits it into a 10-timestep sequence using two
-          different learned frequencies:
-          <span class="code-inline">T_fast = 8</span> and
-          <span class="code-inline">T_slow = 2</span>.
-        </p>
 
-        <div style="margin: 2rem 0">
-          <div class="timeline-track">
-            <span
-              style="
-                position: absolute;
-                left: 10px;
-                font-family: var(--font-mono);
-                font-size: 0.8rem;
-                z-index: 10;
-                color: var(--text-muted);
-              "
-              >T_fast (8 steps: Grammar & Syntax)</span
-            >
-            <div
-              class="pulse"
-              style="animation-duration: 1.2s; animation-delay: 0s"
-            ></div>
-            <div
-              class="pulse"
-              style="animation-duration: 1.2s; animation-delay: 0.4s"
-            ></div>
-            <div
-              class="pulse"
-              style="animation-duration: 1.2s; animation-delay: 0.8s"
-            ></div>
+        <div class="vis-container">
+          <div style="width: 100%; text-align: left; margin-bottom: 10px">
+            <span class="code-inline">T_fast</span> (8 quick pulses for local
+            detail)
           </div>
-          <div class="timeline-track">
-            <span
-              style="
-                position: absolute;
-                left: 10px;
-                font-family: var(--font-mono);
-                font-size: 0.8rem;
-                z-index: 10;
-                color: var(--text-muted);
-              "
-              >T_slow (2 steps: Broader Meaning)</span
-            >
-            <div
-              class="pulse slow"
-              style="animation-duration: 3.5s; animation-delay: 0.2s"
-            ></div>
+          <div class="time-grid" id="t-fast-grid">
+            <div class="time-box" style="flex: 1">t=0</div>
+            <div class="time-box" style="flex: 1">1</div>
+            <div class="time-box" style="flex: 1">2</div>
+            <div class="time-box" style="flex: 1">3</div>
+            <div class="time-box" style="flex: 1">4</div>
+            <div class="time-box" style="flex: 1">5</div>
+            <div class="time-box" style="flex: 1">6</div>
+            <div class="time-box" style="flex: 1">7</div>
           </div>
-        </div>
-        <p style="font-size: 0.9rem; color: var(--text-muted)">
-          The fast path handles local word morphology. The slow path is heavily
-          decimated, giving the network a "long-term memory" of the conversation
-          without increasing the computational depth.
-        </p>
-      </div>
-
-      <!-- STEP 2: THE ASSOCIATIVE CASCADE -->
-      <div class="card">
-        <div class="card-title">
-          <div class="step-num">2</div>
-          <h2 style="margin: 0; border: none; padding: 0">
-            The Associative Cascade
-          </h2>
-        </div>
-        <p>
-          Now the signal enters the neurons (<code>AssociativeLIF</code>).
-          Because the network is 97% sparse, most signals will hit "dead"
-          neurons and stop. The network goes dark.
-        </p>
-        <p>
-          <strong>The Fix:</strong> In the code, neurons are assigned to
-          <code>n_clusters = 64</code>. This forms a 1D topological ring. If a
-          neuron in Cluster 12 spikes, it doesn't just send the spike forward.
-          It looks at a learned weight matrix (<code>neighbor_weights</code>)
-          and injects a soft, continuous current into Clusters 11, 13, 10, and
-          14 (<span class="code-inline">radius = 3</span>).
-        </p>
-
-        <div style="text-align: center">
-          <p style="font-size: 0.9rem; color: var(--text-muted)">
-            <strong>Hover over a node</strong> to simulate a spike. Watch how it
-            cascades to topological neighbors.
-          </p>
-          <div class="ring-container" id="cascade-ring"></div>
-        </div>
-        <p style="font-size: 0.9rem; color: var(--text-muted)">
-          This creates a controlled chain reaction. It allows the model to map
-          concepts (e.g., "Apple" waking up the "Fruit" and "Red" clusters)
-          keeping the network mathematically alive even when exact neurons miss
-          their threshold.
-        </p>
-      </div>
-
-      <!-- STEP 3: SPARSE RESONANCE -->
-      <div class="card">
-        <div class="card-title">
-          <div class="step-num">3</div>
-          <h2 style="margin: 0; border: none; padding: 0">
-            Top-K Sparse Resonance
-          </h2>
-        </div>
-        <p>
-          Standard LLMs use Attention (every word looks at every other word).
-          This requires massive memory matrices:
-          <span class="code-inline">O(S²)</span>.
-        </p>
-        <p>
-          <strong>The Fix:</strong> <code>SpikingSynapticResonance</code>. Nord
-          calculates resonance—it looks for groups of neurons that fire at the
-          <em>exact same timestep</em> (co-firing). But instead of keeping all
-          connections, it executes <code>torch.topk(resonance, K)</code> where
-          <span class="code-inline">top_k = 64</span>. All other connection
-          scores are forced to <span class="code-inline">-inf</span>.
-        </p>
-        <p>
-          For a 512-word context, this means
-          <strong>87.5% of the attention matrix is instantly zeroed out</strong
-          >. The model only "attends" to the 64 strongest causal firing links.
-        </p>
-      </div>
-
-      <!-- STEP 4: LEAKY CLAMP -->
-      <div class="card">
-        <div class="card-title">
-          <div class="step-num">4</div>
-          <h2 style="margin: 0; border: none; padding: 0">The LeakyClamp</h2>
-        </div>
-        <p>
-          In deep neural networks, you need non-linear functions. Most use ReLU:
-          if a value is less than 0, it becomes exactly 0. In an SNN, if a
-          neuron's membrane potential is slightly negative (say, -0.05), ReLU
-          deletes it. Over 6 layers and 10 timesteps, the gradients completely
-          die.
-        </p>
-        <p>
-          <strong>The Fix:</strong> <code>LeakyClamp</code>. It lets negative
-          signals gently "leak" down to a parametric floor (initialized at
-          <span class="code-inline">-0.1</span>). This preserves the
-          "subconscious" build-up of voltage, allowing backpropagation to flow
-          freely.
-        </p>
-
-        <div style="position: relative">
-          <p
+          <div
             style="
-              font-size: 0.85rem;
-              position: absolute;
-              top: 10px;
-              left: 10px;
-              color: var(--text-muted);
-              font-family: var(--font-mono);
+              width: 100%;
+              text-align: left;
+              margin-top: 15px;
+              margin-bottom: 10px;
             "
           >
-            <span style="color: var(--border-color); font-weight: bold"
-              >--</span
-            >
-            ReLU (Dead gradients)<br />
-            <span style="color: var(--accent-coral-text); font-weight: bold"
-              >—</span
-            >
-            LeakyClamp
-          </p>
-          <div class="tooltip" id="chart-tooltip">x: 0, y: 0</div>
-          <svg
-            class="chart-container"
-            id="clamp-chart"
-            viewBox="0 0 400 200"
-            preserveAspectRatio="none"
+            <span class="code-inline">T_slow</span> (2 long pulses for wider
+            context)
+          </div>
+          <div class="time-grid" id="t-slow-grid">
+            <div class="time-box" style="flex: 4">t=8</div>
+            <div class="time-box" style="flex: 4">t=9</div>
+          </div>
+          <div class="vis-caption">
+            Watch how the word vector is modulated across 10 temporal frames.
+          </div>
+        </div>
+        <p>
+          The output is no longer a static vector. It is now a
+          <span class="highlight">Current</span>—a wave of electrical energy
+          spread across 10 timesteps.
+        </p>
+      </div>
+
+      <!-- STEP 2: THE LIF NEURON -->
+      <div class="card">
+        <h2>
+          <div class="step-num">2</div>
+          The Leaky Integrate-and-Fire (LIF) Neuron
+        </h2>
+        <p>
+          Now the electrical current hits the actual neurons. Project Nord uses
+          <strong>LIF neurons</strong> (<code class="code-inline"
+            >AssociativeLIF</code
+          >). Think of a neuron as a bucket with a small hole in the bottom.
+        </p>
+        <ol
+          style="
+            margin-left: 20px;
+            margin-bottom: 20px;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+          "
+        >
+          <li>
+            <strong>Integrate:</strong> The incoming current pours water into
+            the bucket, raising the Membrane Potential (<code
+              class="code-inline"
+              >v_mem</code
+            >).
+          </li>
+          <li>
+            <strong>Leak:</strong> Over time, water leaks out (<code
+              class="code-inline"
+              >tau_mem = 0.9</code
+            >). If the current stops, the bucket empties.
+          </li>
+          <li>
+            <strong>Fire:</strong> If the water crosses the threshold (<code
+              class="code-inline"
+              >0.25</code
+            >), the neuron emits a binary <strong>Spike (1)</strong>. The bucket
+            immediately empties itself.
+          </li>
+        </ol>
+
+        <div class="vis-container">
+          <canvas id="lifCanvas" width="600" height="250"></canvas>
+          <div class="vis-caption">
+            Live simulation of the LIF math. Current pushes v_mem up. If it
+            crosses the dashed threshold, it fires a spike.
+          </div>
+        </div>
+        <div class="code-block">
+          v_mem = beta_m * v_mem + (1.0 - beta_m) * i_syn # 1. Integrate & Leak
+          s = (v_mem >= threshold).float() # 2. Fire (Spike) v_mem = v_mem - s *
+          threshold # 3. Reset
+        </div>
+      </div>
+
+      <!-- STEP 3: ASSOCIATIVE CASCADE -->
+      <div class="card">
+        <h2>
+          <div class="step-num">3</div>
+          The Associative Cascade
+        </h2>
+        <p>
+          Here is the massive problem with SNNs:
+          <strong>Sparsity kills signals.</strong> In Nord, 97% of neurons don't
+          reach their threshold. If a spike is a hard
+          <code class="code-inline">1</code>, and nothing else fires, the
+          network goes completely dark and gradients vanish.
+        </p>
+        <p>
+          <strong>The Nord Solution:</strong> The 512 dimensions are grouped
+          into <code class="code-inline">n_clusters = 64</code>. They form a
+          topological ring.
+        </p>
+        <p>
+          If a neuron in Cluster 10 manages to spike, it doesn't just send its
+          spike forward. It looks at a learned weight matrix and
+          <span class="highlight"
+            >injects a soft, continuous wave of current</span
           >
-            <!-- Axes -->
-            <line x1="0" y1="100" x2="400" y2="100" class="chart-axis" />
-            <line x1="200" y1="0" x2="200" y2="200" class="chart-axis" />
+          into its neighbors (Clusters 8, 9, 11, 12). It literally "splashes"
+          current into the neighboring buckets to help them fire next.
+        </p>
 
-            <!-- ReLU Line: Flat till 200, then linear -->
-            <path d="M 0 100 L 200 100 L 400 0" class="chart-line chart-relu" />
+        <div class="vis-container">
+          <canvas id="cascadeCanvas" width="600" height="150"></canvas>
+          <div class="vis-caption">
+            A 1D array of clusters. A single binary spike (dot) injects a
+            continuous wave of current (v_mem) into its radius=3 neighbors.
+          </div>
+        </div>
+        <div class="code-block">
+          # Instead of keeping a harsh binary spike, we soften it:
+          neighbor_signal = (W @ cluster_fire.T).T i_syn = i_syn +
+          neighbor_signal * cluster_gain
+        </div>
+        <p>
+          This allows the model to map related concepts. If the "Apple" cluster
+          spikes, it gently wakes up the "Fruit" and "Red" clusters, keeping the
+          math alive even at 99% sparsity.
+        </p>
+      </div>
 
-            <!-- LeakyClamp Line: Hits floor at -0.1 (y=120), slopes to origin, then linear -->
-            <path
-              d="M 0 120 L 100 120 L 200 100 L 400 0"
-              class="chart-line chart-leaky"
-            />
-          </svg>
+      <!-- STEP 4: SPARSE RESONANCE -->
+      <div class="card">
+        <h2>
+          <div class="step-num">4</div>
+          Top-K Sparse Resonance (Attention)
+        </h2>
+        <p>
+          Standard LLMs (Transformers) use Self-Attention: every word calculates
+          a score with every other word. For 1000 words, that's a 1,000,000-cell
+          matrix. It's incredibly heavy.
+        </p>
+        <p>
+          Nord uses <span class="highlight">Spiking Synaptic Resonance</span>.
+          Instead of math matrices, it looks for
+          <strong>Temporal Co-firing</strong>. If the neuron for "New" and the
+          neuron for "York" both spark at the exact same timestep, they
+          resonate.
+        </p>
+        <p>
+          But to save massive memory, Nord uses a <strong>Top-K Mask</strong>.
+          It only keeps the top 64 strongest resonant connections per word, and
+          forces everything else to
+          <code class="code-inline">-inf</code> (zero).
+        </p>
+
+        <div class="vis-container" style="padding: 40px 20px">
+          <canvas id="resonanceCanvas" width="600" height="200"></canvas>
+          <div class="vis-caption">
+            Simulated Resonance Matrix. Only the Top-K co-firing pairs (bright
+            lines) are kept. The rest (87.5% of connections) are ignored.
+          </div>
+        </div>
+        <div class="code-block">
+          resonance = torch.matmul(q_flat, k_flat.transpose(-2, -1)) # Keep only
+          top 64 connections, zero the rest top_vals, top_idx =
+          torch.topk(resonance, K=64) sparse_res.scatter_(-1, top_idx, top_vals)
         </div>
       </div>
 
       <!-- STEP 5: EMA READOUT -->
       <div class="card">
-        <div class="card-title">
+        <h2>
           <div class="step-num">5</div>
-          <h2 style="margin: 0; border: none; padding: 0">
-            EMA Temporal Smoothing
-          </h2>
-        </div>
+          EMA Temporal Smoothing Readout
+        </h2>
         <p>
-          We've processed 10 timesteps of 1-bit spikes. How do we output a
-          16-bit float probability for the next word from the vocabulary? This
-          is the classic "Information Bottleneck" of SNN language models.
+          After passing through 6 layers of neurons, we have a sequence of
+          binary spikes over 10 timesteps. How do we turn 1s and 0s back into a
+          rich vocabulary prediction? If you just count the spikes (e.g., "it
+          spiked 3 times"), you lose massive amounts of information. This is the
+          classic 1-bit SNN bottleneck.
         </p>
         <p>
-          <strong>The Fix:</strong> <code>readout_ema_decay</code>. At the final
-          layer, Nord stops looking at the spikes. It reads the raw
-          <em>membrane potential</em> (the water level) of the neurons. Instead
-          of just averaging the 10 timesteps, it applies an
-          <strong>Exponential Moving Average (EMA)</strong>. Later timesteps are
-          weighted exponentially heavier than early ones.
+          <strong>The Nord Solution:</strong> At the very last layer,
+          <span class="highlight">we completely ignore the spikes.</span>
+        </p>
+        <p>
+          Instead, the readout layer looks inside the buckets at the raw,
+          continuous <strong>Membrane Potential</strong> (<code
+            class="code-inline"
+            >v_membrane</code
+          >, a 16-bit float). But it doesn't just average the 10 timesteps. It
+          uses an <strong>Exponential Moving Average (EMA)</strong>.
         </p>
 
-        <div class="ema-container" id="ema-vis">
-          <!-- Bars generated by JS -->
+        <div class="vis-container">
+          <canvas id="emaCanvas" width="600" height="250"></canvas>
+          <div class="vis-caption">
+            EMA Math: The final output is heavily influenced by the latest
+            timesteps (t=8, 9), but the "ghosts" of early timesteps still
+            smoothly pull on the math.
+          </div>
         </div>
-        <p
-          style="
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            text-align: center;
-            margin-top: 8px;
-          "
-        >
-          <span class="code-inline"
-            >ema = alpha * ema + (1 - alpha) * v_membrane[t]</span
-          >
+        <div class="code-block">
+          alpha = self.readout_ema_decay # e.g., 0.8 ema = torch.zeros(...) for
+          t in range(10): # Old memory fades by 0.8, new data added by 0.2 ema =
+          alpha * ema + (1 - alpha) * v_membrane[t]
+        </div>
+        <p>
+          This allows Nord to capture the "final thought" of the network at
+          timestep 10, while retaining the deep context of the entire time
+          sequence, bypassing the binary bottleneck entirely.
         </p>
       </div>
 
-      <!-- STEP 6: REWARD MODULATED STDP -->
+      <!-- STEP 6: ONLINE LEARNING -->
       <div class="card">
-        <div class="card-title">
+        <h2>
           <div class="step-num">6</div>
-          <h2 style="margin: 0; border: none; padding: 0">
-            Reward-Modulated STDP
-          </h2>
-        </div>
+          Reward-Modulated STDP (Online Learning)
+        </h2>
         <p>
-          During inference (chatting on a phone), Nord learns using STDP
-          (Spike-Timing Dependent Plasticity). If Neuron A fires right before
-          Neuron B, their physical connection strengthens. This is local Hebbian
-          learning.
+          Because Nord runs on a phone via Termux, it can learn from you while
+          you chat. It uses STDP:
+          <em>"Neurons that fire together, wire together."</em> If Neuron A
+          fires right before Neuron B, their physical connection gets
+          permanently stronger.
         </p>
         <p>
-          But blind STDP fights global AI training (it strengthens bad habits).
-          Nord fixes this with <code>_compute_reward</code>. It measures the
-          Language Modeling Loss. If the loss improves, it acts as dopamine,
-          multiplying the STDP weight by <span class="code-inline">+1.0</span>.
-          If the loss worsens, it suppresses the update (<span
-            class="code-inline"
-            >-1.0</span
-          >). The model aligns biological learning with global text generation.
+          But blind STDP is dangerous—it might strengthen bad grammar. Nord uses
+          <span class="highlight">Reward Modulation</span>. It calculates the
+          Language Model Loss (does the text make sense?).
+        </p>
+        <ul
+          style="
+            margin-left: 20px;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+          "
+        >
+          <li>
+            If Loss goes <strong>Down</strong> (good): Reward =
+            <code class="code-inline">+1.0</code>. STDP strengthens the synapse.
+          </li>
+          <li>
+            If Loss goes <strong>Up</strong> (bad): Reward =
+            <code class="code-inline">-1.0</code>. STDP reverses, suppressing
+            the synapse.
+          </li>
+        </ul>
+        <p>
+          This perfectly aligns biological Hebbian learning with global AI
+          backpropagation.
         </p>
       </div>
     </main>
@@ -613,147 +596,367 @@
       "
     >
       <div class="container">
-        <p>
-          A 144M parameter architecture built from scratch by a solo 18-year-old
-          student.
-        </p>
+        <p>Built by a solo 18-year-old student from Ukraine.</p>
         <p style="font-family: var(--font-mono); font-size: 0.85rem">
-          cost: ~$10 / hardware: RTX 5070 / deployment: Android Termux
+          Project Nord • 144M Params • Apache 2.0
         </p>
       </div>
     </footer>
 
     <!-- ==========================================================================
-         4. INTERACTIVE JAVASCRIPT
+         JAVASCRIPT: CUSTOM PHYSICS ENGINE FOR VISUALIZATIONS
          ========================================================================== -->
     <script>
+      // Utility: Get CSS variable colors dynamically
+      function getCssVar(name) {
+        return getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim();
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
-        /* --- VIS 2: THE ASSOCIATIVE CASCADE RING --- */
-        // We draw 32 nodes (representing the 64 clusters) in a topological ring
-        const ring = document.getElementById("cascade-ring");
-        const numNodes = 32;
-        const radius = 120;
-        const nodes = [];
+        // --- ANIMATION 1: Multi-Scale Time DOM Animation ---
+        const fastBoxes = document.querySelectorAll("#t-fast-grid .time-box");
+        const slowBoxes = document.querySelectorAll("#t-slow-grid .time-box");
+        let t = 0;
+        setInterval(() => {
+          fastBoxes.forEach((b) => b.classList.remove("active"));
+          slowBoxes.forEach((b) => b.classList.remove("active"));
 
-        for (let i = 0; i < numNodes; i++) {
-          const node = document.createElement("div");
-          node.className = "cluster-node";
+          if (t < 8) {
+            fastBoxes[t].classList.add("active");
+          } else {
+            slowBoxes[t - 8].classList.add("active");
+          }
 
-          // Position in a circle
-          const angle = (i / numNodes) * Math.PI * 2 - Math.PI / 2; // Start at top
-          const x = Math.cos(angle) * radius + 140; // 140 is half of container (280)
-          const y = Math.sin(angle) * radius + 140;
+          t = (t + 1) % 10;
+        }, 400);
 
-          node.style.left = `${x}px`;
-          node.style.top = `${y}px`;
+        // --- ANIMATION 2: The LIF Neuron Math (Canvas) ---
+        const lifCanvas = document.getElementById("lifCanvas");
+        const lifCtx = lifCanvas.getContext("2d");
 
-          ring.appendChild(node);
-          nodes.push(node);
+        let timeLif = 0;
+        let v_mem = 0;
+        const threshold = 1.0;
+        const tau_mem = 0.95;
 
-          // Interactions (radius = 3)
-          node.addEventListener("mouseenter", () => {
-            nodes.forEach((n) => (n.className = "cluster-node")); // Reset
-            node.classList.add("active"); // Center spike
+        // Generate a noisy input current
+        const inputCurrent = Array.from({ length: 600 }, (_, i) => {
+          return Math.max(0, Math.sin(i * 0.05) * 0.15 + Math.random() * 0.1);
+        });
 
-            // Light up topological neighbors wrapping around the array
-            for (let r = 1; r <= 3; r++) {
-              const rightIdx = (i + r) % numNodes;
-              const leftIdx = (i - r + numNodes) % numNodes;
-              nodes[rightIdx].classList.add(`neighbor-${r}`);
-              nodes[leftIdx].classList.add(`neighbor-${r}`);
+        const vMemHistory = [];
+        const spikes = [];
+
+        function drawLIF() {
+          lifCtx.clearRect(0, 0, lifCanvas.width, lifCanvas.height);
+          const colorTeal = getCssVar("--accent-teal");
+          const colorMuted = getCssVar("--text-muted");
+          const colorBorder = getCssVar("--border-strong");
+
+          // Physics Update
+          const current = inputCurrent[timeLif % inputCurrent.length];
+          v_mem = v_mem * tau_mem + current; // Integrate & Leak
+
+          let didSpike = false;
+          if (v_mem >= threshold) {
+            didSpike = true;
+            spikes.push({ x: 600, alpha: 1.0 }); // Save spike for rendering
+            v_mem -= threshold; // Reset
+          }
+
+          vMemHistory.push(v_mem);
+          if (vMemHistory.length > 600) vMemHistory.shift();
+
+          // Draw Threshold Line
+          const thY = lifCanvas.height - 180;
+          lifCtx.beginPath();
+          lifCtx.setLineDash([5, 5]);
+          lifCtx.strokeStyle = colorBorder;
+          lifCtx.moveTo(0, thY);
+          lifCtx.lineTo(600, thY);
+          lifCtx.stroke();
+          lifCtx.setLineDash([]);
+          lifCtx.fillStyle = colorMuted;
+          lifCtx.font = "12px monospace";
+          lifCtx.fillText("v_threshold (0.25)", 10, thY - 10);
+
+          // Draw Membrane Potential Curve
+          lifCtx.beginPath();
+          lifCtx.strokeStyle = colorTeal;
+          lifCtx.lineWidth = 2;
+          for (let i = 0; i < vMemHistory.length; i++) {
+            const x = i;
+            const y = lifCanvas.height - 20 - vMemHistory[i] * 160;
+            if (i === 0) lifCtx.moveTo(x, y);
+            else lifCtx.lineTo(x, y);
+          }
+          lifCtx.stroke();
+
+          // Draw current value
+          lifCtx.fillText(
+            `v_mem: ${v_mem.toFixed(2)}`,
+            10,
+            lifCanvas.height - 5,
+          );
+
+          // Draw Spikes (Flashes)
+          for (let i = spikes.length - 1; i >= 0; i--) {
+            const sp = spikes[i];
+            sp.x -= 1; // move left with history
+
+            if (sp.x < 0) {
+              spikes.splice(i, 1);
+              continue;
             }
-          });
 
-          node.addEventListener("mouseleave", () => {
-            nodes.forEach((n) => (n.className = "cluster-node"));
-          });
+            lifCtx.beginPath();
+            lifCtx.fillStyle = `rgba(20, 184, 166, ${sp.alpha})`;
+            lifCtx.arc(sp.x, thY, 6 + (1 - sp.alpha) * 10, 0, Math.PI * 2);
+            lifCtx.fill();
+            sp.alpha *= 0.9; // fade out
+          }
+
+          timeLif++;
+          requestAnimationFrame(drawLIF);
+        }
+        drawLIF();
+
+        // --- ANIMATION 3: Associative Cascade (Canvas) ---
+        const casCanvas = document.getElementById("cascadeCanvas");
+        const casCtx = casCanvas.getContext("2d");
+
+        const numClusters = 40;
+        const nodeSpacing = casCanvas.width / numClusters;
+        // State arrays
+        let clusterVMem = new Array(numClusters).fill(0);
+        let activeSpikeIdx = -1;
+        let cascadeTimer = 0;
+
+        function drawCascade() {
+          casCtx.clearRect(0, 0, casCanvas.width, casCanvas.height);
+          const colorTeal = getCssVar("--accent-teal");
+          const colorCoral = getCssVar("--accent-coral");
+          const colorBorder = getCssVar("--border-strong");
+          const colorMuted = getCssVar("--text-muted");
+
+          // Logic: Trigger a spike occasionally
+          if (cascadeTimer <= 0) {
+            activeSpikeIdx = Math.floor(Math.random() * (numClusters - 6)) + 3;
+            cascadeTimer = 150; // frames
+          }
+          cascadeTimer--;
+
+          // Decay all vmems (Leak)
+          for (let i = 0; i < numClusters; i++) {
+            clusterVMem[i] *= 0.92;
+          }
+
+          // Inject current to neighbors if spiked
+          if (cascadeTimer === 149) {
+            // Radius = 3
+            const weights = [0.2, 0.5, 0.8, 1.0, 0.8, 0.5, 0.2]; // Soft neighbor weights
+            for (let w = 0; w < weights.length; w++) {
+              const targetIdx = activeSpikeIdx - 3 + w;
+              if (targetIdx >= 0 && targetIdx < numClusters) {
+                clusterVMem[targetIdx] += weights[w] * 1.5; // Inject
+              }
+            }
+          }
+
+          // Draw Baseline
+          casCtx.beginPath();
+          casCtx.strokeStyle = colorBorder;
+          casCtx.moveTo(0, 100);
+          casCtx.lineTo(casCanvas.width, 100);
+          casCtx.stroke();
+
+          // Draw Clusters & v_mem fluid
+          for (let i = 0; i < numClusters; i++) {
+            const x = i * nodeSpacing + nodeSpacing / 2;
+            const yBase = 100;
+
+            // The v_mem "water level"
+            const vH = Math.min(60, clusterVMem[i] * 30);
+
+            if (vH > 1) {
+              casCtx.fillStyle =
+                i === activeSpikeIdx && cascadeTimer > 130
+                  ? colorCoral
+                  : colorTeal;
+              casCtx.globalAlpha = 0.5;
+              casCtx.fillRect(x - 4, yBase - vH, 8, vH);
+              casCtx.globalAlpha = 1.0;
+            }
+
+            // The Node Dot
+            casCtx.beginPath();
+            casCtx.fillStyle = colorMuted;
+            if (i === activeSpikeIdx && cascadeTimer > 130)
+              casCtx.fillStyle = colorCoral; // The Spiker
+            casCtx.arc(x, yBase, 3, 0, Math.PI * 2);
+            casCtx.fill();
+          }
+
+          requestAnimationFrame(drawCascade);
+        }
+        drawCascade();
+
+        // --- ANIMATION 4: Sparse Resonance (Canvas) ---
+        const resCanvas = document.getElementById("resonanceCanvas");
+        const resCtx = resCanvas.getContext("2d");
+
+        let resTime = 0;
+        // Generate static matrix of "attention"
+        const numWords = 30;
+        const matrix = [];
+        for (let q = 0; q < numWords; q++) {
+          const row = [];
+          for (let k = 0; k < numWords; k++) {
+            // Causal mask + random score
+            if (k > q) row.push(-Infinity);
+            else row.push(Math.random());
+          }
+
+          // Keep only Top-K (let's say K=3 for visual clarity out of 30)
+          const kVal = 3;
+          const indexedRow = row
+            .map((val, idx) => ({ val, idx }))
+            .filter((o) => o.val !== -Infinity);
+          indexedRow.sort((a, b) => b.val - a.val); // Descending
+          const topIndices = indexedRow.slice(0, kVal).map((o) => o.idx);
+
+          for (let k = 0; k < numWords; k++) {
+            if (!topIndices.includes(k) && row[k] !== -Infinity) {
+              row[k] = 0; // Zeroed out by TopK
+            }
+          }
+          matrix.push(row);
         }
 
-        /* --- VIS 4: EMA READOUT --- */
-        const emaVis = document.getElementById("ema-vis");
-        const timesteps = 10;
-        const alpha = 0.8; // EMA decay factor
+        function drawResonance() {
+          resCtx.clearRect(0, 0, resCanvas.width, resCanvas.height);
+          const colorTeal = getCssVar("--accent-teal");
+          const colorBorder = getCssVar("--border-color");
 
-        // Random initial membrane potentials
-        let v_mem = Array.from(
-          { length: timesteps },
+          const cellSize = resCanvas.height / numWords;
+          const startX = (resCanvas.width - numWords * cellSize) / 2;
+
+          for (let q = 0; q < numWords; q++) {
+            for (let k = 0; k < numWords; k++) {
+              const val = matrix[q][k];
+              const x = startX + k * cellSize;
+              const y = q * cellSize;
+
+              if (val === -Infinity) {
+                // Causal mask (future)
+                resCtx.fillStyle = "transparent";
+              } else if (val === 0) {
+                // Zeroed by TopK
+                resCtx.fillStyle = colorBorder;
+                resCtx.globalAlpha = 0.2;
+                resCtx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+                resCtx.globalAlpha = 1.0;
+              } else {
+                // Top-K survivor! Pulse it based on time
+                const pulse = Math.sin(resTime * 0.05 + q * k) * 0.3 + 0.7; // 0.4 to 1.0
+                resCtx.fillStyle = colorTeal;
+                resCtx.globalAlpha = val * pulse;
+                resCtx.fillRect(x, y, cellSize, cellSize);
+                resCtx.globalAlpha = 1.0;
+              }
+            }
+          }
+          resTime++;
+          requestAnimationFrame(drawResonance);
+        }
+        drawResonance();
+
+        // --- ANIMATION 5: EMA Readout (Canvas) ---
+        const emaCanvas = document.getElementById("emaCanvas");
+        const emaCtx = emaCanvas.getContext("2d");
+
+        let emaTime = 0;
+        const tSteps = 10;
+        const alphaEma = 0.75;
+
+        // Raw V_mem array
+        const rawV = Array.from(
+          { length: tSteps },
           () => Math.random() * 0.5 + 0.2,
         );
 
-        for (let t = 0; t < timesteps; t++) {
-          const wrapper = document.createElement("div");
-          wrapper.className = "ema-bar-wrapper";
+        function drawEMA() {
+          emaCtx.clearRect(0, 0, emaCanvas.width, emaCanvas.height);
+          const colorTeal = getCssVar("--accent-teal");
+          const colorBlue = getCssVar("--accent-blue");
+          const colorMuted = getCssVar("--text-muted");
 
-          const bar = document.createElement("div");
-          bar.className = "ema-bar";
+          const barWidth = 30;
+          const spacing = (emaCanvas.width - 100) / tSteps;
 
-          // Calculate EMA weight influence for visualization
-          // Current timestep carries weight (1-alpha) * alpha^(T - t - 1)
-          const influence = Math.pow(alpha, timesteps - t - 1);
+          // Calculate EMA mathematically to draw the curve
+          let currentEma = 0;
+          const emaPoints = [];
 
-          // Height based on raw voltage, opacity/color based on EMA influence
-          bar.style.height = `${v_mem[t] * 100}px`;
+          for (let t = 0; t < tSteps; t++) {
+            // Update raw slowly
+            rawV[t] += (Math.random() - 0.5) * 0.02;
+            rawV[t] = Math.max(0.1, Math.min(0.9, rawV[t]));
 
-          // Dark mode / Light mode aware coloring using CSS vars via inline opacity
-          // The later timesteps are deeply saturated, early ones fade out
-          if (t === timesteps - 1) {
-            bar.style.background = "var(--accent-teal-text)"; // Most recent
-          } else {
-            bar.style.background = `rgba(13, 148, 136, ${influence + 0.1})`; // Teal based
+            // Math: ema = alpha * ema + (1-alpha) * v
+            currentEma = alphaEma * currentEma + (1 - alphaEma) * rawV[t];
+
+            const x = 50 + t * spacing;
+
+            // Draw Raw Bar (Ghostly)
+            const rawH = rawV[t] * 150;
+            emaCtx.fillStyle = colorMuted;
+            emaCtx.globalAlpha = 0.2;
+            emaCtx.fillRect(x, emaCanvas.height - 30 - rawH, barWidth, rawH);
+
+            // Draw EMA Influence (How much does this exact step contribute to final output?)
+            // Weight of step t at the very end (T=10) is roughly (1-a) * a^(T-t-1)
+            const finalInfluence =
+              (1 - alphaEma) * Math.pow(alphaEma, tSteps - t - 1);
+
+            emaCtx.fillStyle = colorTeal;
+            emaCtx.globalAlpha = finalInfluence * 5; // scaled for visibility
+            emaCtx.fillRect(x, emaCanvas.height - 30 - rawH, barWidth, rawH);
+            emaCtx.globalAlpha = 1.0;
+
+            // Labels
+            emaCtx.fillStyle = colorMuted;
+            emaCtx.font = "10px monospace";
+            emaCtx.fillText(`t=${t}`, x + 5, emaCanvas.height - 10);
+
+            emaPoints.push({
+              x: x + barWidth / 2,
+              y: emaCanvas.height - 30 - currentEma * 150,
+            });
           }
 
-          const label = document.createElement("div");
-          label.className = "ema-label";
-          label.innerText = `t=${t}`;
+          // Draw the running EMA line
+          emaCtx.beginPath();
+          emaCtx.strokeStyle = colorBlue;
+          emaCtx.lineWidth = 3;
+          for (let i = 0; i < emaPoints.length; i++) {
+            if (i === 0) emaCtx.moveTo(emaPoints[i].x, emaPoints[i].y);
+            else emaCtx.lineTo(emaPoints[i].x, emaPoints[i].y);
+          }
+          emaCtx.stroke();
 
-          wrapper.appendChild(bar);
-          wrapper.appendChild(label);
-          emaVis.appendChild(wrapper);
+          emaCtx.fillStyle = colorBlue;
+          emaCtx.fillText(
+            "EMA Curve",
+            emaPoints[9].x - 40,
+            emaPoints[9].y - 15,
+          );
+
+          requestAnimationFrame(drawEMA);
         }
-
-        // Animate data slightly
-        setInterval(() => {
-          const bars = emaVis.querySelectorAll(".ema-bar");
-          bars.forEach((bar, t) => {
-            const jitter = (Math.random() - 0.5) * 0.2;
-            v_mem[t] = Math.max(0.1, Math.min(1.0, v_mem[t] + jitter));
-            bar.style.height = `${v_mem[t] * 100}px`;
-          });
-        }, 2000);
-
-        /* --- VIS 3: LEAKY CLAMP CHART INTERACTION --- */
-        const chart = document.getElementById("clamp-chart");
-        const tooltip = document.getElementById("chart-tooltip");
-
-        chart.addEventListener("mousemove", (e) => {
-          const rect = chart.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-
-          // Chart bounds: x=0 to 400. Center is 200.
-          const mathX = (x - 200) / 100; // Range ~ -2.0 to 2.0
-
-          // Calculate Y mathematically
-          const reluY = mathX > 0 ? mathX : 0;
-
-          // LeakyClamp logic: clamp_floor = -0.5, leak = 0.2 (exaggerated for visual)
-          const floor = -0.5;
-          const leak = 0.2;
-          let leakyY = mathX >= 0 ? mathX : Math.max(floor, mathX * leak);
-
-          tooltip.style.opacity = "1";
-          tooltip.style.left = `${x + 15}px`;
-          tooltip.style.top = `10px`;
-
-          tooltip.innerHTML = `
-                    Input (x): ${mathX.toFixed(2)}<br>
-                    ReLU: ${reluY.toFixed(2)}<br>
-                    LeakyClamp: <span style="color: var(--accent-coral-text)">${leakyY.toFixed(2)}</span>
-                `;
-        });
-
-        chart.addEventListener("mouseleave", () => {
-          tooltip.style.opacity = "0";
-        });
+        drawEMA();
       });
     </script>
   </body>
