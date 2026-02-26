@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Architecture of Project Nord</title>
+    <style>
+      /* ==========================================================================
+           1. THEME & VARIABLES (Muted, Unassuming, Auto Light/Dark)
+           ========================================================================== */
+      :root {
+        /* Light Mode */
+        --bg-page: #fafaf9; /* Warm off-white */
+        --bg-card: #ffffff;
+        --bg-panel: #f5f5f4;
+
+        --text-main: #292524; /* Warm dark gray */
+        --text-muted: #78716c;
+
+        --accent-blue: #7dd3fc;
+        --accent-blue-text: #0284c7;
+        --accent-teal: #5eead4;
+        --accent-teal-text: #0d9488;
+        --accent-coral: #fca5a5;
+        --accent-coral-text: #e11d48;
+
+        --border-color: #e7e5e4;
+        --shadow-soft: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+
+        --font-sans: "Inter", system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", "Fira Code", monospace;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          /* Dark Mode */
+          --bg-page: #1c1917; /* Warm almost-black */
+          --bg-card: #292524;
+          --bg-panel: #221f1e;
+
+          --text-main: #f5f5f4;
+          --text-muted: #a8a29e;
+
+          --accent-blue: #0284c7;
+          --accent-blue-text: #7dd3fc;
+          --accent-teal: #0d9488;
+          --accent-teal-text: #5eead4;
+          --accent-coral: #e11d48;
+          --accent-coral-text: #fca5a5;
+
+          --border-color: #44403c;
+          --shadow-soft: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+      }
+
+      /* ==========================================================================
+           2. GLOBAL STYLES
+           ========================================================================== */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg-page);
+        color: var(--text-main);
+        font-family: var(--font-sans);
+        line-height: 1.6;
+        transition:
+          background-color 0.3s,
+          color 0.3s;
+      }
+
+      .container {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-bottom: 1rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-top: 3rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.5rem;
+      }
+      h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-muted);
+      }
+      p {
+        margin-bottom: 1.25rem;
+        font-size: 1.05rem;
+      }
+
+      .code-inline {
+        background: var(--bg-panel);
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-family: var(--font-mono);
+        font-size: 0.85em;
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
+      }
+
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 32px;
+        margin: 2rem 0;
+        box-shadow: var(--shadow-soft);
+      }
+
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .step-num {
+        background: var(--accent-blue);
+        color: var(--bg-page);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+
+      /* ==========================================================================
+           3. INTERACTIVE VISUALIZATIONS
+           ========================================================================== */
+
+      /* Vis 1: Multi-Scale Time */
+      .timeline-track {
+        height: 40px;
+        background: var(--bg-panel);
+        border-radius: 10px;
+        position: relative;
+        margin-bottom: 12px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+      }
+      .pulse {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        position: absolute;
+        background: var(--accent-teal);
+        animation: moveRight linear infinite;
+      }
+      .pulse.slow {
+        width: 40px;
+        border-radius: 6px;
+        background: var(--accent-blue);
+        animation-duration: 4s;
+      }
+      @keyframes moveRight {
+        0% {
+          left: -50px;
+          opacity: 0;
+        }
+        20% {
+          opacity: 1;
+        }
+        80% {
+          opacity: 1;
+        }
+        100% {
+          left: 100%;
+          opacity: 0;
+        }
+      }
+
+      /* Vis 2: Associative Cascade (The Ring) */
+      .ring-container {
+        position: relative;
+        width: 280px;
+        height: 280px;
+        margin: 2rem auto;
+      }
+      .cluster-node {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        background: var(--border-color);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition:
+          background 0.3s,
+          transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        cursor: pointer;
+      }
+      .cluster-node:hover {
+        transform: translate(-50%, -50%) scale(1.5);
+      }
+      .cluster-node.active {
+        background: var(--accent-teal-text);
+        transform: translate(-50%, -50%) scale(1.8);
+        z-index: 10;
+        box-shadow: 0 0 10px var(--accent-teal);
+      }
+      .cluster-node.neighbor-1 {
+        background: var(--accent-teal);
+        transform: translate(-50%, -50%) scale(1.4);
+      }
+      .cluster-node.neighbor-2 {
+        background: var(--accent-blue-text);
+        transform: translate(-50%, -50%) scale(1.2);
+      }
+      .cluster-node.neighbor-3 {
+        background: var(--accent-blue);
+        transform: translate(-50%, -50%) scale(1.1);
+      }
+
+      /* Vis 3: Leaky Clamp Chart */
+      .chart-container {
+        width: 100%;
+        height: 200px;
+        background: var(--bg-panel);
+        border-radius: 12px;
+        position: relative;
+        cursor: crosshair;
+        border: 1px solid var(--border-color);
+      }
+      .chart-line {
+        stroke-width: 3;
+        fill: none;
+        stroke-linecap: round;
+      }
+      .chart-relu {
+        stroke: var(--border-color);
+        stroke-dasharray: 6 6;
+      }
+      .chart-leaky {
+        stroke: var(--accent-coral-text);
+      }
+      .chart-axis {
+        stroke: var(--text-muted);
+        stroke-width: 1;
+      }
+      .tooltip {
+        position: absolute;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      /* Vis 4: EMA Readout */
+      .ema-container {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        height: 150px;
+        padding: 20px;
+        background: var(--bg-panel);
+        border-radius: 12px;
+        margin-top: 1rem;
+      }
+      .ema-bar-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 8%;
+      }
+      .ema-bar {
+        width: 100%;
+        background: var(--border-color);
+        border-radius: 4px 4px 0 0;
+        transition:
+          height 0.5s,
+          background 0.5s;
+      }
+      .ema-label {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header style="padding: 80px 0 40px; text-align: center">
+      <div class="container">
+        <div
+          class="code-inline"
+          style="margin-bottom: 1rem; display: inline-block"
+        >
+          Project Nord v3.1
+        </div>
+        <h1>A Precise Walkthrough</h1>
+        <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto">
+          No vague analogies. We are going to trace exactly how the tensor math
+          and spiking neurons in <code>nord_core.py</code> process a single
+          word.
+        </p>
+      </div>
+    </header>
+
+    <main class="container">
+      <p>
+        In a standard Transformer, the word "Hello" is turned into a continuous
+        vector (like <code>[0.12, -0.54, 0.99...]</code>) and multiplied through
+        billions of parameters. It's mathematically dense.
+      </p>
+      <p>
+        In Nord, the network is <strong>97% dead space</strong>. It uses 1-bit
+        binary spikes (zeros and ones). To make this actually generate coherent
+        English, it uses a highly specific 6-step pipeline. Let's walk through
+        it.
+      </p>
+
+      <!-- STEP 1: MULTI-SCALE TEMPORAL ENCODER -->
+      <div class="card">
+        <div class="card-title">
+          <div class="step-num">1</div>
+          <h2 style="margin: 0; border: none; padding: 0">
+            The Multi-Scale Encoder
+          </h2>
+        </div>
+        <p>
+          A word isn't a single event; in a Spiking Neural Network (SNN), it has
+          to be spread over <strong>time</strong>. The problem? If you use too
+          many timesteps, the network takes forever to run. If you use too few,
+          it forgets the context of the sentence.
+        </p>
+        <p>
+          <strong>The Fix:</strong> <code>TemporalSpikeEncoder</code>. Nord
+          takes the word and splits it into a 10-timestep sequence using two
+          different learned frequencies:
+          <span class="code-inline">T_fast = 8</span> and
+          <span class="code-inline">T_slow = 2</span>.
+        </p>
+
+        <div style="margin: 2rem 0">
+          <div class="timeline-track">
+            <span
+              style="
+                position: absolute;
+                left: 10px;
+                font-family: var(--font-mono);
+                font-size: 0.8rem;
+                z-index: 10;
+                color: var(--text-muted);
+              "
+              >T_fast (8 steps: Grammar & Syntax)</span
+            >
+            <div
+              class="pulse"
+              style="animation-duration: 1.2s; animation-delay: 0s"
+            ></div>
+            <div
+              class="pulse"
+              style="animation-duration: 1.2s; animation-delay: 0.4s"
+            ></div>
+            <div
+              class="pulse"
+              style="animation-duration: 1.2s; animation-delay: 0.8s"
+            ></div>
+          </div>
+          <div class="timeline-track">
+            <span
+              style="
+                position: absolute;
+                left: 10px;
+                font-family: var(--font-mono);
+                font-size: 0.8rem;
+                z-index: 10;
+                color: var(--text-muted);
+              "
+              >T_slow (2 steps: Broader Meaning)</span
+            >
+            <div
+              class="pulse slow"
+              style="animation-duration: 3.5s; animation-delay: 0.2s"
+            ></div>
+          </div>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted)">
+          The fast path handles local word morphology. The slow path is heavily
+          decimated, giving the network a "long-term memory" of the conversation
+          without increasing the computational depth.
+        </p>
+      </div>
+
+      <!-- STEP 2: THE ASSOCIATIVE CASCADE -->
+      <div class="card">
+        <div class="card-title">
+          <div class="step-num">2</div>
+          <h2 style="margin: 0; border: none; padding: 0">
+            The Associative Cascade
+          </h2>
+        </div>
+        <p>
+          Now the signal enters the neurons (<code>AssociativeLIF</code>).
+          Because the network is 97% sparse, most signals will hit "dead"
+          neurons and stop. The network goes dark.
+        </p>
+        <p>
+          <strong>The Fix:</strong> In the code, neurons are assigned to
+          <code>n_clusters = 64</code>. This forms a 1D topological ring. If a
+          neuron in Cluster 12 spikes, it doesn't just send the spike forward.
+          It looks at a learned weight matrix (<code>neighbor_weights</code>)
+          and injects a soft, continuous current into Clusters 11, 13, 10, and
+          14 (<span class="code-inline">radius = 3</span>).
+        </p>
+
+        <div style="text-align: center">
+          <p style="font-size: 0.9rem; color: var(--text-muted)">
+            <strong>Hover over a node</strong> to simulate a spike. Watch how it
+            cascades to topological neighbors.
+          </p>
+          <div class="ring-container" id="cascade-ring"></div>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted)">
+          This creates a controlled chain reaction. It allows the model to map
+          concepts (e.g., "Apple" waking up the "Fruit" and "Red" clusters)
+          keeping the network mathematically alive even when exact neurons miss
+          their threshold.
+        </p>
+      </div>
+
+      <!-- STEP 3: SPARSE RESONANCE -->
+      <div class="card">
+        <div class="card-title">
+          <div class="step-num">3</div>
+          <h2 style="margin: 0; border: none; padding: 0">
+            Top-K Sparse Resonance
+          </h2>
+        </div>
+        <p>
+          Standard LLMs use Attention (every word looks at every other word).
+          This requires massive memory matrices:
+          <span class="code-inline">O(S²)</span>.
+        </p>
+        <p>
+          <strong>The Fix:</strong> <code>SpikingSynapticResonance</code>. Nord
+          calculates resonance—it looks for groups of neurons that fire at the
+          <em>exact same timestep</em> (co-firing). But instead of keeping all
+          connections, it executes <code>torch.topk(resonance, K)</code> where
+          <span class="code-inline">top_k = 64</span>. All other connection
+          scores are forced to <span class="code-inline">-inf</span>.
+        </p>
+        <p>
+          For a 512-word context, this means
+          <strong>87.5% of the attention matrix is instantly zeroed out</strong
+          >. The model only "attends" to the 64 strongest causal firing links.
+        </p>
+      </div>
+
+      <!-- STEP 4: LEAKY CLAMP -->
+      <div class="card">
+        <div class="card-title">
+          <div class="step-num">4</div>
+          <h2 style="margin: 0; border: none; padding: 0">The LeakyClamp</h2>
+        </div>
+        <p>
+          In deep neural networks, you need non-linear functions. Most use ReLU:
+          if a value is less than 0, it becomes exactly 0. In an SNN, if a
+          neuron's membrane potential is slightly negative (say, -0.05), ReLU
+          deletes it. Over 6 layers and 10 timesteps, the gradients completely
+          die.
+        </p>
+        <p>
+          <strong>The Fix:</strong> <code>LeakyClamp</code>. It lets negative
+          signals gently "leak" down to a parametric floor (initialized at
+          <span class="code-inline">-0.1</span>). This preserves the
+          "subconscious" build-up of voltage, allowing backpropagation to flow
+          freely.
+        </p>
+
+        <div style="position: relative">
+          <p
+            style="
+              font-size: 0.85rem;
+              position: absolute;
+              top: 10px;
+              left: 10px;
+              color: var(--text-muted);
+              font-family: var(--font-mono);
+            "
+          >
+            <span style="color: var(--border-color); font-weight: bold"
+              >--</span
+            >
+            ReLU (Dead gradients)<br />
+            <span style="color: var(--accent-coral-text); font-weight: bold"
+              >—</span
+            >
+            LeakyClamp
+          </p>
+          <div class="tooltip" id="chart-tooltip">x: 0, y: 0</div>
+          <svg
+            class="chart-container"
+            id="clamp-chart"
+            viewBox="0 0 400 200"
+            preserveAspectRatio="none"
+          >
+            <!-- Axes -->
+            <line x1="0" y1="100" x2="400" y2="100" class="chart-axis" />
+            <line x1="200" y1="0" x2="200" y2="200" class="chart-axis" />
+
+            <!-- ReLU Line: Flat till 200, then linear -->
+            <path d="M 0 100 L 200 100 L 400 0" class="chart-line chart-relu" />
+
+            <!-- LeakyClamp Line: Hits floor at -0.1 (y=120), slopes to origin, then linear -->
+            <path
+              d="M 0 120 L 100 120 L 200 100 L 400 0"
+              class="chart-line chart-leaky"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <!-- STEP 5: EMA READOUT -->
+      <div class="card">
+        <div class="card-title">
+          <div class="step-num">5</div>
+          <h2 style="margin: 0; border: none; padding: 0">
+            EMA Temporal Smoothing
+          </h2>
+        </div>
+        <p>
+          We've processed 10 timesteps of 1-bit spikes. How do we output a
+          16-bit float probability for the next word from the vocabulary? This
+          is the classic "Information Bottleneck" of SNN language models.
+        </p>
+        <p>
+          <strong>The Fix:</strong> <code>readout_ema_decay</code>. At the final
+          layer, Nord stops looking at the spikes. It reads the raw
+          <em>membrane potential</em> (the water level) of the neurons. Instead
+          of just averaging the 10 timesteps, it applies an
+          <strong>Exponential Moving Average (EMA)</strong>. Later timesteps are
+          weighted exponentially heavier than early ones.
+        </p>
+
+        <div class="ema-container" id="ema-vis">
+          <!-- Bars generated by JS -->
+        </div>
+        <p
+          style="
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 8px;
+          "
+        >
+          <span class="code-inline"
+            >ema = alpha * ema + (1 - alpha) * v_membrane[t]</span
+          >
+        </p>
+      </div>
+
+      <!-- STEP 6: REWARD MODULATED STDP -->
+      <div class="card">
+        <div class="card-title">
+          <div class="step-num">6</div>
+          <h2 style="margin: 0; border: none; padding: 0">
+            Reward-Modulated STDP
+          </h2>
+        </div>
+        <p>
+          During inference (chatting on a phone), Nord learns using STDP
+          (Spike-Timing Dependent Plasticity). If Neuron A fires right before
+          Neuron B, their physical connection strengthens. This is local Hebbian
+          learning.
+        </p>
+        <p>
+          But blind STDP fights global AI training (it strengthens bad habits).
+          Nord fixes this with <code>_compute_reward</code>. It measures the
+          Language Modeling Loss. If the loss improves, it acts as dopamine,
+          multiplying the STDP weight by <span class="code-inline">+1.0</span>.
+          If the loss worsens, it suppresses the update (<span
+            class="code-inline"
+            >-1.0</span
+          >). The model aligns biological learning with global text generation.
+        </p>
+      </div>
+    </main>
+
+    <footer
+      style="
+        text-align: center;
+        padding: 60px 0;
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        border-top: 1px solid var(--border-color);
+        margin-top: 40px;
+      "
+    >
+      <div class="container">
+        <p>
+          A 144M parameter architecture built from scratch by a solo 18-year-old
+          student.
+        </p>
+        <p style="font-family: var(--font-mono); font-size: 0.85rem">
+          cost: ~$10 / hardware: RTX 5070 / deployment: Android Termux
+        </p>
+      </div>
+    </footer>
+
+    <!-- ==========================================================================
+         4. INTERACTIVE JAVASCRIPT
+         ========================================================================== -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        /* --- VIS 2: THE ASSOCIATIVE CASCADE RING --- */
+        // We draw 32 nodes (representing the 64 clusters) in a topological ring
+        const ring = document.getElementById("cascade-ring");
+        const numNodes = 32;
+        const radius = 120;
+        const nodes = [];
+
+        for (let i = 0; i < numNodes; i++) {
+          const node = document.createElement("div");
+          node.className = "cluster-node";
+
+          // Position in a circle
+          const angle = (i / numNodes) * Math.PI * 2 - Math.PI / 2; // Start at top
+          const x = Math.cos(angle) * radius + 140; // 140 is half of container (280)
+          const y = Math.sin(angle) * radius + 140;
+
+          node.style.left = `${x}px`;
+          node.style.top = `${y}px`;
+
+          ring.appendChild(node);
+          nodes.push(node);
+
+          // Interactions (radius = 3)
+          node.addEventListener("mouseenter", () => {
+            nodes.forEach((n) => (n.className = "cluster-node")); // Reset
+            node.classList.add("active"); // Center spike
+
+            // Light up topological neighbors wrapping around the array
+            for (let r = 1; r <= 3; r++) {
+              const rightIdx = (i + r) % numNodes;
+              const leftIdx = (i - r + numNodes) % numNodes;
+              nodes[rightIdx].classList.add(`neighbor-${r}`);
+              nodes[leftIdx].classList.add(`neighbor-${r}`);
+            }
+          });
+
+          node.addEventListener("mouseleave", () => {
+            nodes.forEach((n) => (n.className = "cluster-node"));
+          });
+        }
+
+        /* --- VIS 4: EMA READOUT --- */
+        const emaVis = document.getElementById("ema-vis");
+        const timesteps = 10;
+        const alpha = 0.8; // EMA decay factor
+
+        // Random initial membrane potentials
+        let v_mem = Array.from(
+          { length: timesteps },
+          () => Math.random() * 0.5 + 0.2,
+        );
+
+        for (let t = 0; t < timesteps; t++) {
+          const wrapper = document.createElement("div");
+          wrapper.className = "ema-bar-wrapper";
+
+          const bar = document.createElement("div");
+          bar.className = "ema-bar";
+
+          // Calculate EMA weight influence for visualization
+          // Current timestep carries weight (1-alpha) * alpha^(T - t - 1)
+          const influence = Math.pow(alpha, timesteps - t - 1);
+
+          // Height based on raw voltage, opacity/color based on EMA influence
+          bar.style.height = `${v_mem[t] * 100}px`;
+
+          // Dark mode / Light mode aware coloring using CSS vars via inline opacity
+          // The later timesteps are deeply saturated, early ones fade out
+          if (t === timesteps - 1) {
+            bar.style.background = "var(--accent-teal-text)"; // Most recent
+          } else {
+            bar.style.background = `rgba(13, 148, 136, ${influence + 0.1})`; // Teal based
+          }
+
+          const label = document.createElement("div");
+          label.className = "ema-label";
+          label.innerText = `t=${t}`;
+
+          wrapper.appendChild(bar);
+          wrapper.appendChild(label);
+          emaVis.appendChild(wrapper);
+        }
+
+        // Animate data slightly
+        setInterval(() => {
+          const bars = emaVis.querySelectorAll(".ema-bar");
+          bars.forEach((bar, t) => {
+            const jitter = (Math.random() - 0.5) * 0.2;
+            v_mem[t] = Math.max(0.1, Math.min(1.0, v_mem[t] + jitter));
+            bar.style.height = `${v_mem[t] * 100}px`;
+          });
+        }, 2000);
+
+        /* --- VIS 3: LEAKY CLAMP CHART INTERACTION --- */
+        const chart = document.getElementById("clamp-chart");
+        const tooltip = document.getElementById("chart-tooltip");
+
+        chart.addEventListener("mousemove", (e) => {
+          const rect = chart.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+
+          // Chart bounds: x=0 to 400. Center is 200.
+          const mathX = (x - 200) / 100; // Range ~ -2.0 to 2.0
+
+          // Calculate Y mathematically
+          const reluY = mathX > 0 ? mathX : 0;
+
+          // LeakyClamp logic: clamp_floor = -0.5, leak = 0.2 (exaggerated for visual)
+          const floor = -0.5;
+          const leak = 0.2;
+          let leakyY = mathX >= 0 ? mathX : Math.max(floor, mathX * leak);
+
+          tooltip.style.opacity = "1";
+          tooltip.style.left = `${x + 15}px`;
+          tooltip.style.top = `10px`;
+
+          tooltip.innerHTML = `
+                    Input (x): ${mathX.toFixed(2)}<br>
+                    ReLU: ${reluY.toFixed(2)}<br>
+                    LeakyClamp: <span style="color: var(--accent-coral-text)">${leakyY.toFixed(2)}</span>
+                `;
+        });
+
+        chart.addEventListener("mouseleave", () => {
+          tooltip.style.opacity = "0";
+        });
+      });
+    </script>
+  </body>
+</html>
