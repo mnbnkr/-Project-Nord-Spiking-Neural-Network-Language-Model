@@ -3,1681 +3,557 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Inside Project Nord: SNN Architecture</title>
-    <style>
-      /* ==========================================================================
-         THEME & VARIABLES (Modern, Fluid Light/Dark)
-         ========================================================================== */
-      :root {
-        --bg-page: #f8fafc;
-        --bg-card: #ffffff;
-        --bg-panel: #f1f5f9;
-        --bg-code: #1e293b;
-
-        --text-main: #334155;
-        --text-muted: #64748b;
-        --text-faint: #94a3b8;
-        --text-code: #e2e8f0;
-
-        --accent-teal: #0d9488;
-        --accent-amber: #d97706;
-        --accent-coral: #e11d48;
-        --accent-blue: #2563eb;
-        --accent-green: #10b981;
-
-        --border-color: #e2e8f0;
-        --border-strong: #cbd5e1;
-
-        --font-sans:
-          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          sans-serif;
-        --font-mono: "JetBrains Mono", "Fira Code", "SFMono-Regular", monospace;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg-page: #080c16;
-          --bg-card: #131b2c;
-          --bg-panel: #0d1322;
-          --bg-code: #0b101d;
-
-          --text-main: #f8fafc;
-          --text-muted: #94a3b8;
-          --text-faint: #475569;
-          --text-code: #f8fafc;
-
-          --accent-teal: #2dd4bf;
-          --accent-amber: #fbbf24;
-          --accent-coral: #fb7185;
-          --accent-blue: #60a5fa;
-          --accent-green: #34d399;
-
-          --border-color: #1e293b;
-          --border-strong: #334155;
-        }
-      }
-
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        background-color: var(--bg-page);
-        color: var(--text-main);
-        font-family: var(--font-sans);
-        line-height: 1.7;
-        overflow-x: hidden;
-        transition:
-          background-color 0.3s,
-          color 0.3s;
-      }
-
-      .container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
-
-      header {
-        padding: 120px 0 80px;
-        border-bottom: 1px solid var(--border-color);
-        background: linear-gradient(
-          180deg,
-          var(--bg-panel) 0%,
-          var(--bg-page) 100%
-        );
-      }
-
-      h1 {
-        font-size: clamp(2.5rem, 5vw, 3.5rem);
-        font-weight: 800;
-        letter-spacing: -0.04em;
-        margin-bottom: 1.5rem;
-        line-height: 1.1;
-      }
-      h2 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        margin: 1.5rem 0 1rem;
-        letter-spacing: -0.02em;
-      }
-      p {
-        margin-bottom: 1.5rem;
-        font-size: 1.1rem;
-        color: var(--text-muted);
-      }
-
-      strong {
-        color: var(--text-main);
-        font-weight: 600;
-      }
-      .highlight-teal {
-        color: var(--accent-teal);
-        font-weight: 700;
-      }
-      .highlight-amber {
-        color: var(--accent-amber);
-        font-weight: 700;
-      }
-
-      .tag {
-        display: inline-block;
-        background: var(--bg-card);
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-family: var(--font-mono);
-        font-size: 0.85em;
-        font-weight: 600;
-        color: var(--accent-teal);
-        border: 1px solid var(--border-color);
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-      }
-
-      /* ==========================================================================
-         CODE BLOCKS (Syntax Highlighting)
-         ========================================================================== */
-      .code-window {
-        background: var(--bg-code);
-        border-radius: 12px;
-        margin: 2.5rem 0;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-        overflow: hidden;
-        border: 1px solid var(--border-strong);
-      }
-      .code-header {
-        background: rgba(255, 255, 255, 0.03);
-        padding: 12px 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        display: flex;
-        gap: 8px;
-      }
-      .code-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-      }
-      .code-dot:nth-child(1) {
-        background: #ef4444;
-      }
-      .code-dot:nth-child(2) {
-        background: #eab308;
-      }
-      .code-dot:nth-child(3) {
-        background: #22c55e;
-      }
-
-      .code-body {
-        padding: 20px;
-        overflow-x: auto;
-      }
-      pre {
-        margin: 0;
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-      code {
-        font-family: var(--font-mono);
-        font-size: 0.95rem;
-        color: var(--text-code);
-        line-height: 1.6;
-      }
-
-      .c-comment {
-        color: #64748b;
-        font-style: italic;
-      }
-      .c-func {
-        color: #60a5fa;
-        font-weight: 600;
-      }
-      .c-kw {
-        color: #c084fc;
-        font-weight: 600;
-      }
-      .c-num {
-        color: #fba11b;
-      }
-
-      /* ==========================================================================
-         CARDS & VISUAL CONTAINERS
-         ========================================================================== */
-      .card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 20px;
-        padding: 60px 50px;
-        margin: 6rem 0;
-        position: relative;
-        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.02);
-      }
-
-      @media (max-width: 768px) {
-        .card {
-          padding: 40px 24px;
-          margin: 4rem 0;
-        }
-      }
-
-      .step-badge {
-        position: absolute;
-        top: -16px;
-        left: 50px;
-        background: var(--bg-card);
-        color: var(--accent-teal);
-        border: 1px solid var(--border-strong);
-        font-weight: 700;
-        padding: 6px 16px;
-        border-radius: 20px;
-        font-family: var(--font-mono);
-        font-size: 0.85rem;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-      }
-
-      @media (max-width: 768px) {
-        .step-badge {
-          left: 24px;
-        }
-      }
-
-      .vis-container {
-        width: 100%;
-        background: var(--bg-panel);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        margin: 2.5rem 0;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        position: relative;
-      }
-
-      .vis-caption {
-        width: 100%;
-        text-align: center;
-        font-family: var(--font-mono);
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        padding: 16px 24px;
-        border-top: 1px solid var(--border-color);
-        background: var(--bg-card);
-        line-height: 1.6;
-      }
-
-      .interactive-hint {
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        background: rgba(13, 148, 136, 0.15);
-        color: var(--accent-teal);
-        border: 1px solid rgba(13, 148, 136, 0.3);
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-family: var(--font-mono);
-        pointer-events: none;
-        animation: pulse 2s infinite;
-      }
-
-      @keyframes pulse {
-        0% {
-          opacity: 0.6;
-        }
-        50% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0.6;
-        }
-      }
-
-      canvas {
-        display: block;
-        width: 100%;
-        cursor: crosshair;
-      }
-    </style>
+    <title>Inside Project Nord  –  SNN Architecture Walkthrough</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <header>
       <div class="container">
-        <div class="tag">Project Nord • 144M SNN Language Model</div>
+        <div class="tag">
+          Project Nord · 144M SNN Language Model · Built from Scratch
+        </div>
         <h1>Inside the Spiking Engine</h1>
-        <p style="font-size: 1.25rem; color: var(--text-main)">
-          Standard AI models perform continuous, heavy matrix multiplications
-          for every single word. Biological brains don't do this. They use
-          sparse, <strong>1-bit binary electricity (spikes)</strong>, resting
-          97% of the time to save massive energy.
+        <p style="font-size: 1.2rem; color: var(--text-main); max-width: 680px">
+          Standard AI models perform dense, expensive matrix multiplications for
+          every single token. Biological brains don't  –  they use sparse,
+          <strong>1-bit binary spikes</strong>, firing only 2–3% of the time.
+          This page traces one word through Nord's entire computational
+          pipeline, step by step, with every animation mathematically faithful
+          to the running source code.
         </p>
-        <p>
-          Historically, training an AI to use binary spikes for complex language
-          has been bottlenecked by gradient death and information loss.
-          <strong>Project Nord</strong> entirely bypasses these issues with a
-          completely original, from-scratch architecture. Let's walk through the
-          precise mathematical journey of a single word traveling through Nord's
-          biological engine.
+        <p style="max-width: 660px">
+          <strong>Project Nord</strong> solves five problems that every prior
+          SNN language model either failed at or avoided entirely  –  all in one
+          novel, from-scratch architecture. No distillation, no teacher
+          transformer. Let's trace the journey.
         </p>
       </div>
     </header>
 
     <main class="container">
-      <!-- STEP 1: ENCODING -->
+      <!-- ═══════════════════════════════════════════════ STEP 1: ENCODER ════ -->
       <div class="card">
-        <div class="step-badge">Step 1: Time Expansion</div>
+        <div class="step-badge">Step 1 · Time Expansion</div>
         <h2>The Multi-Scale Temporal Encoder</h2>
         <p>
-          When you type "Hello", standard AI transforms it into a static
-          512-dimensional continuous array. But Spiking Networks can't process
-          static frames—they require
-          <strong>continuous waves over time</strong>.
+          When you type <em>"Hello"</em>, a standard transformer turns it into a
+          single 512-dimensional float vector and stops there. A spiking network
+          can't process a frozen static frame  –  it requires a
+          <strong>stream of input current flowing across time</strong>.
         </p>
         <p>
-          Nord's <code>TemporalSpikeEncoder</code> solves this by expanding the
-          static vector into <strong>10 discrete timesteps</strong> of
-          electrical current, split into two functional "scales":
+          Nord's <code>TemporalSpikeEncoder</code> solves this by expanding that
+          one static vector into
+          <strong>10 discrete timesteps of injected current</strong>, split
+          across two functional scales:
         </p>
-        <ul
-          style="
-            margin-left: 20px;
-            margin-bottom: 1.5rem;
-            color: var(--text-muted);
-          "
-        >
+        <ul>
           <li>
-            <strong class="highlight-teal">T_fast (8 steps):</strong> A
-            high-amplitude, volatile drive. It rapidly encodes local details
-            (e.g., morphology).
+            <strong class="hl-teal">T_fast (8 steps, scale = 15.0):</strong>
+            High-amplitude, rapidly-varying drive. Each step uses a different
+            learned sigmoid gate over the 512 dims, making it volatile  –  ideal
+            for capturing local morpheme-level details.
           </li>
           <li>
-            <strong class="highlight-amber">T_slow (2 steps):</strong> A deeply
-            suppressed, gentle drive. It acts as an anchor, holding onto the
-            broader context.
+            <strong class="hl-amber">T_slow (2 steps, scale = 5.0):</strong>
+            Gently suppressed, stable drive. Lower amplitude anchors the network
+            to a broader "context summary" without overpowering the fast path.
           </li>
         </ul>
 
         <div class="code-window">
           <div class="code-header">
-            <div class="code-dot"></div>
-            <div class="code-dot"></div>
-            <div class="code-dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span class="code-fname"
+              >nord_core.py · TemporalSpikeEncoder.forward()</span
+            >
           </div>
           <div class="code-body">
-            <pre><code><span class="c-comment"># The static vector for the word</span>
-vec_x <span class="c-kw">=</span> <span class="c-func">embedding</span>(token) <span class="c-comment"># Shape: [Batch, 512]</span>
+            <pre><code><span class="c-c"># Token embedding + learned temporal projection</span>
+x = temporal_proj(embed(token_ids))     <span class="c-c"># (B×S, D=512)</span>
 
-<span class="c-comment"># Fast path: 8 steps. High amplitude (15.0).</span>
-fast <span class="c-kw">=</span> torch.<span class="c-func">sigmoid</span>(fast_basis) * vec_x * <span class="c-num">15.0</span>
+<span class="c-c"># Fast path: T=8 steps, each with its own learned gate per dimension</span>
+fast_gates = torch.<span class="c-f">sigmoid</span>(fast_basis)   <span class="c-c"># (8, 512)  –  learned per-step gate</span>
+fast = fast_gates * x * drive_scale      <span class="c-c"># drive_scale ≈ 15.0</span>
 
-<span class="c-comment"># Slow path: 2 steps. Low amplitude (5.0).</span>
-slow <span class="c-kw">=</span> torch.<span class="c-func">sigmoid</span>(slow_basis) * vec_x * <span class="c-num">5.0</span>
+<span class="c-c"># Slow path: T_slow=2 steps, weaker amplitude</span>
+slow_gates = torch.<span class="c-f">sigmoid</span>(slow_basis)   <span class="c-c"># (2, 512)  –  different learned gate</span>
+slow = slow_gates * x * slow_scale       <span class="c-c"># slow_scale ≈ 5.0</span>
 
-<span class="c-comment"># Concatenate sequentially to create the 10-step wave</span>
-current_in <span class="c-kw">=</span> torch.<span class="c-func">cat</span>([fast, slow], dim=<span class="c-num">0</span>)</code></pre>
+<span class="c-c"># Concatenate → (10, B×S, 512) injected current tensor</span>
+current_in = torch.<span class="c-f">cat</span>([fast, slow], dim=<span class="c-n">0</span>)</code></pre>
           </div>
         </div>
 
-        <div class="vis-container">
-          <canvas id="encoderCanvas" data-height="400"></canvas>
+        <div class="vis-wrap">
+          <canvas id="encCanvas"></canvas>
           <div class="vis-caption">
-            The flat Static Word Vector (Bottom) expands into 10 frames of
-            temporal current (Top). Teal pillars (Fast) fluctuate rapidly. Amber
-            pillars (Slow) provide stable anchors. Fixed clipping & bounds.
+            The static word embedding (bottom bar) is gated and scaled into 10
+            temporal current streams. Teal bars (T1–T8, fast) oscillate with
+            high amplitude (~15×). Amber bars (T9–T10, slow) move gently at low
+            amplitude (~5×). Each bar's height represents injected current for
+            that timestep.
           </div>
         </div>
       </div>
 
-      <!-- STEP 2: LIF NEURON -->
+      <!-- ═══════════════════════════════════════════════ STEP 2: LIF ════ -->
       <div class="card">
-        <div class="step-badge">Step 2: Binary Conversion</div>
-        <h2>The LIF Neuron & Membrane Memory</h2>
+        <div class="step-badge">Step 2 · Binary Conversion</div>
+        <h2>The AssociativeLIF Neuron  –  Integrate, Fire, Reset</h2>
         <p>
-          We now possess 10 timesteps of continuous current. To achieve 97%
-          sparsity, we must crush this math into
-          <strong>1-bit binary spikes</strong> using the
-          <code>AssociativeLIF</code> (Leaky Integrate-and-Fire) block.
+          We now have 10 timesteps of continuous current. The
+          <code>AssociativeLIF</code> (Leaky Integrate-and-Fire) block converts
+          this stream into <strong>1-bit binary spikes</strong>, achieving the
+          97% sparsity that makes Nord energy-efficient.
         </p>
         <p>
-          Current (<code>i_syn</code>) flows in, raising the membrane potential
-          (<code>v_mem</code>). Due to the leak factor (<code
-            >tau_mem = 0.9</code
-          >), voltage drifts back to its resting state (-0.1). If the voltage
-          hits the <strong>Threshold (0.25)</strong>, the neuron "fires" a
-          digital spike and enters a rigid <strong>Refractory Period</strong> (2
-          timesteps) where it refuses to fire.
+          Each timestep runs three coupled equations: the
+          <strong>synaptic current</strong> (<code>i_syn</code>) integrates
+          incoming drive with exponential decay (<code>tau_syn = 0.5</code>),
+          the <strong>membrane voltage</strong> (<code>v_mem</code>) integrates
+          that current with leak (<code>tau_mem = 0.9</code>), and if voltage
+          crosses <code>v_threshold = 0.25</code> a spike fires. The neuron then
+          enters a hard <strong>refractory period</strong> of 2 timesteps where
+          voltage is clamped to <code>v_reset = -0.1</code>, preventing any
+          re-firing.
+        </p>
+        <p>
+          After each spike, <strong>Cascade amplification</strong> (Step 3)
+          injects a sub-threshold ripple back into <code>i_syn</code> to keep
+          gradient flow alive.
         </p>
 
-        <div class="vis-container">
-          <canvas id="lifCanvas" data-height="350"></canvas>
+        <div class="code-window">
+          <div class="code-header">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span class="code-fname"
+              >nord_core.py · AssociativeLIF.forward()  –  per-timestep
+              loop</span
+            >
+          </div>
+          <div class="code-body">
+            <pre><code><span class="c-k">for</span> t <span class="c-k">in</span> <span class="c-f">range</span>(T_total):           <span class="c-c"># T_total = 10</span>
+    <span class="c-c"># 1. Synaptic integration (low-pass filter on input)</span>
+    i_syn = beta_syn * i_syn + current_in[t]     <span class="c-c"># beta_syn ≈ 0.50</span>
+
+    <span class="c-c"># 2. Membrane voltage: leak or clamp during refractory</span>
+    <span class="c-k">if</span> refractory:
+        v_mem = v_reset   <span class="c-c"># = -0.1, hard clamp</span>
+    <span class="c-k">else</span>:
+        v_mem = beta_mem * v_mem + (<span class="c-n">1</span>-beta_mem) * i_syn   <span class="c-c"># beta_mem ≈ 0.90</span>
+
+    <span class="c-c"># 3. Fire if above threshold (ATan surrogate gradient for backprop)</span>
+    spike = spike_fn(v_mem, threshold)           <span class="c-c"># → 0 or 1</span>
+
+    <span class="c-c"># 4. Soft reset + cascade ripple injection</span>
+    v_mem = v_mem - spike * threshold            <span class="c-c"># soft reset (≈ 0)</span>
+    <span class="c-k">if</span> spike.sum() > <span class="c-n">0</span>:
+        i_syn += cascade_amplify(spike)          <span class="c-c"># neighbor ripple (Step 3)</span>
+    refrac_counter = <span class="c-f">set_refractory</span>(spike, <span class="c-n">2</span>)  <span class="c-c"># 2-step lock</span></code></pre>
+          </div>
+        </div>
+
+        <div class="vis-wrap">
+          <canvas id="lifCanvas"></canvas>
           <div class="vis-caption">
-            Real-time mathematical trace. The green line (Input Current) pumps
-            into the system. The blue line (Membrane Voltage) integrates it.
-            Hitting 0.25 triggers a Spike (Coral), resetting voltage to -0.1 and
-            locking it during the Refractory block (shaded).
+            Oscilloscope trace of a single LIF neuron receiving periodic current
+            bursts.
+            <strong>Green</strong> = filtered synaptic current i_syn.
+            <strong>Teal</strong> = membrane voltage v_mem. When v_mem crosses
+            the <strong>threshold 0.25</strong>, a
+            <strong>coral spike</strong> fires, v_mem soft-resets to ~0, and the
+            neuron enters the grey refractory block (v_mem clamped to −0.1) for
+            2 steps.
           </div>
         </div>
       </div>
 
-      <!-- STEP 3: CASCADE -->
+      <!-- ═══════════════════════════════════════════════ STEP 3: CASCADE ════ -->
       <div class="card">
-        <div class="step-badge">Step 3: Preventing Death</div>
-        <h2>The Associative Cascade</h2>
+        <div class="step-badge">Step 3 · Preventing Death</div>
+        <h2>The Associative Cascade  –  Keeping Gradients Alive</h2>
         <p>
-          Here lies the fatal paradox of Spiking Networks: Efficiency requires
-          silence, but silence destroys deep learning. Nord operates at
-          <strong>97% sparsity</strong>. Backpropagation gradients hit these
-          zeros and vanish.
+          Here's the central paradox of deep spiking networks: efficiency
+          demands silence, but silence kills learning. At 97% sparsity,
+          backpropagation gradients multiply through seas of zeros and
+          <strong>vanish before reaching early layers</strong>. Nord's
+          Associative Cascade solves this.
         </p>
         <p>
-          Nord remedies this via the <strong>Associative Cascade</strong>.
-          Neurons are mapped onto a topological ring of 64 clusters. When a
-          neuron fires a spike, it triggers a learned
-          <code>neighbor_weights</code> matrix, injecting a soft, sub-threshold
-          "ripple" into its neighbors, keeping the mathematical gradient alive.
+          The D=512 neurons are partitioned into
+          <strong>64 topological clusters</strong> arranged in a ring. When
+          neurons in a cluster fire, they send a "soft ripple" of sub-threshold
+          current to their neighboring clusters via a learnable
+          <code>64×64 weight matrix</code>. Closer neighbors (within radius=3)
+          receive stronger initial weights. This continuous, differentiable
+          current keeps gradients flowing even when spikes themselves are binary
+          zeros.
+        </p>
+        <p>
+          Crucially, the neighbor weights and per-cluster gains are
+          <strong>learned during training</strong>
+           –  the network decides which cluster topologies are most useful.
         </p>
 
-        <div class="vis-container">
-          <div class="interactive-hint">Hover Mouse to Trigger Spikes!</div>
-          <canvas id="cascadeCanvas" data-height="450"></canvas>
+        <div class="code-window">
+          <div class="code-header">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span class="code-fname"
+              >nord_core.py · AssociativeLIF._cascade_amplify()</span
+            >
+          </div>
+          <div class="code-body">
+            <pre><code><span class="c-c"># Group D=512 neurons into nc=64 clusters</span>
+cluster_fire = scatter_add(spikes, cluster_ids) / (D // nc)  <span class="c-c"># (B, 64)</span>
+
+<span class="c-c"># Learned soft neighbor weight matrix  –  sigmoid keeps weights in (0,1)</span>
+W = torch.<span class="c-f">sigmoid</span>(neighbor_weights)             <span class="c-c"># (64, 64)</span>
+
+<span class="c-c"># Each cluster receives weighted sum of neighbors' spike rates</span>
+neighbor_signal = (W @ cluster_fire.T).T          <span class="c-c"># (B, 64)</span>
+
+<span class="c-c"># Per-cluster learnable gain (not one global scalar)</span>
+neighbor_signal = neighbor_signal * cluster_gain   <span class="c-c"># (B, 64)</span>
+
+<span class="c-c"># Scatter back to neurons by cluster membership → added to i_syn</span>
+<span class="c-k">return</span> neighbor_signal.gather(<span class="c-n">1</span>, cluster_ids)     <span class="c-c"># (B, D=512)</span></code></pre>
+          </div>
+        </div>
+
+        <div class="vis-wrap">
+          <div class="hint-tag">🖱 Hover to trigger spikes</div>
+          <canvas id="casCanvas"></canvas>
           <div class="vis-caption">
-            <strong>Interactive:</strong> Move your mouse over the ring! Notice
-            how manually triggering a discrete spike (Coral) physically bleeds
-            soft, continuous current into its direct neighbors (Teal),
-            preventing local gradient death.
+            <strong>Interactive:</strong> 64 neural clusters arranged in a
+            topological ring (as in the code). Node brightness = cluster
+            membrane potential. Move your mouse over clusters to trigger spikes
+            (coral). Watch the cascade propagate: activated clusters inject
+            sub-threshold current (teal glow) into neighbors proportional to
+            their learned weights, preventing gradient death.
           </div>
         </div>
       </div>
 
-      <!-- STEP 4: RESONANCE -->
+      <!-- ═══════════════════════════════════════════════ STEP 4: RESONANCE ════ -->
       <div class="card">
-        <div class="step-badge">Step 4: Attention Replacement</div>
-        <h2>Spiking Synaptic Resonance</h2>
+        <div class="step-badge">Step 4 · Attention Replacement</div>
+        <h2>Sparse Spiking Synaptic Resonance</h2>
         <p>
-          Standard Transformers use "Self-Attention"—a massive O(N²) dense
-          matrix. Nord replaces Attention entirely with
-          <strong>Spiking Synaptic Resonance</strong>. It only checks: Did the
-          <em>Query</em> neuron fire at the exact same millisecond as a
-          <em>Key</em> neuron from a past word?
+          Standard Transformers use Self-Attention: an expensive O(S²) operation
+          that computes a similarity score between every pair of tokens using
+          continuous float vectors. Nord replaces this entirely with
+          <strong>Spiking Synaptic Resonance</strong>.
         </p>
         <p>
-          To radically optimize memory, Nord applies
-          <strong>Top-K Sparsity</strong>. It calculates the co-firing
-          resonance, but instantly zero-masks everything except the Top-K (64)
-          strongest connections.
+          Query and Key projections are each passed through their own LIF
+          neurons, producing <strong>binary spike patterns</strong> across T=10
+          timesteps. The "resonance score" between position <em>i</em> (query)
+          and position <em>j</em> (key) is then the dot product of their spike
+          patterns  –  how many times did they fire simultaneously across the 10
+          temporal frames?
+        </p>
+        <p>
+          To save memory, only the
+          <strong>Top-K=64 resonance scores</strong> per query position are
+          kept. All others are zeroed out before softmax, making attention 87.5%
+          sparse for typical sequence lengths.
         </p>
 
-        <div class="vis-container">
-          <canvas id="resonanceCanvas" data-height="450"></canvas>
+        <div class="code-window">
+          <div class="code-header">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span class="code-fname"
+              >nord_core.py · SpikingSynapticResonance.forward()</span
+            >
+          </div>
+          <div class="code-body">
+            <pre><code><span class="c-c"># Project to Q, K, V  –  then spike Q and K independently</span>
+q_spikes, _ = lif_q(W_q(x))  <span class="c-c"># (T=10, B×S, D) binary spikes</span>
+k_spikes, _ = lif_k(W_k(x))  <span class="c-c"># (T=10, B×S, D) binary spikes</span>
+
+<span class="c-c"># Flatten time×head-dim → resonance = co-firing dot product</span>
+q_flat = q_spikes.reshape(B, n_heads, S, T * d_head)   <span class="c-c"># (B, H, S, T×Dh)</span>
+k_flat = k_spikes.reshape(B, n_heads, S, T * d_head)
+resonance = q_flat @ k_flat.transpose(<span class="c-n">-2</span>, <span class="c-n">-1</span>)          <span class="c-c"># (B, H, S, S)</span>
+
+<span class="c-c"># Causal mask (no peeking at future tokens)</span>
+resonance.masked_fill_(future_mask, float(<span class="c-s">"-inf"</span>))
+
+<span class="c-c"># ═══ FIX #5: Top-K Sparsity ═══ keep only top-64 per query row</span>
+sparse_res = full(-inf)
+sparse_res.scatter_(-<span class="c-n">1</span>, top_k_indices, top_k_values)  <span class="c-c"># zero-mask the rest</span>
+attn = softmax(sparse_res)</code></pre>
+          </div>
+        </div>
+
+        <div class="vis-wrap">
+          <canvas id="resCanvas"></canvas>
           <div class="vis-caption">
-            The Attention Scanner moves row-by-row. It evaluates all temporal
-            resonances, but dynamically crushes the weaker connections to zero,
-            leaving only the Top-K strongest pillars standing to drastically
-            save VRAM.
+            Left: binary Q-spike patterns (teal = fired). Top: binary K-spike
+            patterns. Center: resonance heatmap  –  brighter = more co-firing
+            (stronger connection). The scanner (coral row) processes one query
+            position at a time and applies <strong>Top-K masking</strong>: only
+            the top-3 strongest connections per row survive (highlighted). The
+            rest are killed to −∞ before softmax, saving 87%+ of memory vs. full
+            attention.
           </div>
         </div>
       </div>
 
-      <!-- STEP 5: STDP -->
+      <!-- ═══════════════════════════════════════════════ STEP 5: STDP ════ -->
       <div class="card">
-        <div class="step-badge">Step 5: Online Learning</div>
-        <h2>Reward-Modulated STDP</h2>
+        <div class="step-badge">Step 5 · Online Learning</div>
+        <h2>Reward-Modulated STDP  –  Learning During Inference</h2>
         <p>
-          Nord features
-          <strong>Spike-Timing Dependent Plasticity (STDP)</strong>, allowing it
-          to dynamically update its own weights <em>during</em> inference on a
-          phone CPU.
+          Nord can <strong>update its own weights during inference</strong>,
+          even on a phone CPU, using
+          <strong>Spike-Timing Dependent Plasticity (STDP)</strong>. The
+          biological rule: connections strengthen if a pre-synaptic neuron fires
+          just <em>before</em> a post-synaptic neuron (the "Hebbian" or
+          causality direction), and weaken in the reverse order.
         </p>
         <p>
-          Standard STDP is blind—it might strengthen grammatical errors just
-          because neurons co-fired. Nord fixes this by calculating a
-          <strong>Reward Signal</strong> based on the Language Model loss. If
-          current loss is better than historical EMA loss, the reward plane
-          drops and permanent synaptic plasticity is applied.
+          Standard STDP is blind to whether the network is actually improving
+           –  it could strengthen weights that produce wrong predictions. Nord
+          fixes this with a
+          <strong>Reward Signal</strong>: the final weight update is multiplied
+          by <code>2 × sigmoid(loss_EMA − current_loss) − 1</code>, which maps
+          to (+1) when predictions are improving (LTP) and (−1) when they're
+          worsening (LTD reversal).
         </p>
 
-        <div class="vis-container">
-          <canvas id="stdpCanvas" data-height="450"></canvas>
+        <div class="code-window">
+          <div class="code-header">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span class="code-fname"
+              >nord_core.py · STDPEngine.compute_stdp_update() + reward
+              modulation</span
+            >
+          </div>
+          <div class="code-body">
+            <pre><code><span class="c-k">for</span> t <span class="c-k">in</span> <span class="c-f">range</span>(T):
+    <span class="c-c"># Decaying pre- and post-synaptic eligibility traces</span>
+    trace_pre  = decay_plus  * trace_pre  + pre_spikes[t]   <span class="c-c"># tau_plus  = 20</span>
+    trace_post = decay_minus * trace_post + post_spikes[t]  <span class="c-c"># tau_minus = 20</span>
+
+    <span class="c-c"># LTP: post fires → reinforce connections from active pre neurons</span>
+    dW += a_plus  * outer(post_spikes[t], trace_pre)         <span class="c-c"># a_plus  = 0.005</span>
+    <span class="c-c"># LTD: pre fires  → weaken connections to recently-active post</span>
+    dW -= a_minus * outer(trace_post,     pre_spikes[t])     <span class="c-c"># a_minus = 0.005</span>
+
+<span class="c-c"># Reward modulation: aligns local Hebbian with global LM loss</span>
+reward = sigmoid(loss_EMA - current_loss)       <span class="c-c"># 1.0 = improving, 0.0 = worsening</span>
+dW_final = dW * (<span class="c-n">2.0</span> * reward - <span class="c-n">1.0</span>)          <span class="c-c"># maps to (−1, +1)</span>
+layer.weight += dW_final.clamp(w_min, w_max)</code></pre>
+          </div>
+        </div>
+
+        <div class="vis-wrap">
+          <canvas id="stdpCanvas"></canvas>
           <div class="vis-caption">
-            <strong>Sequence:</strong> 1) Neuron A fires. 2) Spike travels to B.
-            3) Neuron B fires. 4) Loss is evaluated. 5) If prediction is
-            correct, the Global Reward Plane (Green) drops, permanently
-            thickening the synapse. If wrong (Red), the synapse shrinks.
+            Four synchronized traces. <strong>Pre-neuron spikes</strong> (coral)
+            launch decaying eligibility traces (top).
+            <strong>Post-neuron spikes</strong> (teal) launch their own traces
+            (second). The <strong>ΔW line</strong> integrates the outer products
+             –  green = LTP, red = LTD. The final
+            <strong>Reward bar</strong> (bottom) shows sigmoid(loss_EMA − loss):
+            when loss drops (green sector), ΔW is applied at full strength; when
+            loss rises (red), the update flips sign.
           </div>
         </div>
       </div>
 
-      <!-- STEP 6: LEAKYCLAMP -->
+      <!-- ═══════════════════════════════════════════════ STEP 6: LEAKYCLAMP ════ -->
       <div class="card">
-        <div class="step-badge">Step 6: Protecting State</div>
-        <h2>LeakyClamp vs Standard ReLU</h2>
+        <div class="step-badge">Step 6 · Protecting State</div>
+        <h2>LeakyClamp  –  Keeping the Sub-Threshold Ghost Alive</h2>
         <p>
-          In 99% of modern AI, <strong>ReLU</strong> is the gatekeeper. It
-          perfectly passes positive numbers, but permanently turns all negative
-          numbers into `0`. In a Spiking Network, a neuron's default resting
-          state is intrinsically negative (-0.1). ReLU destroys this resting
-          state.
+          In virtually every modern neural network, <strong>ReLU</strong> is the
+          non-linearity: for any positive input, pass it through; for any
+          negative input, return exactly zero. For a traditional classification
+          network this is fine. For a spiking network it is fatal.
         </p>
         <p>
-          Nord introduces <strong>LeakyClamp</strong>. It allows negative
-          signals to pass but gently compresses them down to a learnable floor
-          channel (initialized at <code>-0.1</code>), protecting the crucial
-          "ghosts" of the network's sub-threshold state.
+          A LIF neuron's natural resting voltage is
+          <code>v_reset = -0.1</code>  –  intrinsically negative. ReLU
+          annihilates this: the entire sub-threshold state, which carries rich
+          information about how close a neuron is to firing, becomes identically
+          zero. Gradients cannot flow through zero; neurons can never recover
+          from silence.
+        </p>
+        <p>
+          Nord introduces <strong>LeakyClamp</strong>. For positive values it's
+          identity; for negative values it applies a
+          <strong>learned per-channel leak slope</strong> (≈0.1)  –  gently
+          compressing negative signals down to a
+          <strong>learnable floor</strong>
+          (initialized at −0.1). The sub-threshold ghost is preserved.
         </p>
 
-        <div class="vis-container">
-          <canvas id="leakyCanvas" data-height="350"></canvas>
+        <div class="code-window">
+          <div class="code-header">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span class="code-fname">nord_core.py · LeakyClamp.forward()</span>
+          </div>
+          <div class="code-body">
+            <pre><code><span class="c-c"># Learnable per-channel parameters (initialized at floor=-0.1, leak≈0.1)</span>
+<span class="c-c"># For x ≥ 0: identity</span>
+<span class="c-c"># For x < 0: compress with leak slope, clamp above floor</span>
+neg_part = (self.leak * x).<span class="c-f">clamp</span>(min=self.floor)  <span class="c-c"># leak ∈ (0,1)</span>
+<span class="c-k">return</span> torch.<span class="c-f">where</span>(x >= <span class="c-n">0</span>, x, neg_part)
+
+<span class="c-c"># Compare to standard ReLU (kills all negative state):</span>
+<span class="c-c">#   relu(x) = max(0, x)   ← x = -0.1 → 0.0 (dead!)</span>
+<span class="c-c">#   leaky_clamp(-0.1) → 0.1*(-0.1) = -0.01 (preserved!)</span></code></pre>
+          </div>
+        </div>
+
+        <div class="vis-wrap">
+          <canvas id="lkyCanvas"></canvas>
           <div class="vis-caption">
-            The moving dot represents the electrical signal. ReLU (dashed line)
-            ruthlessly destroys all data below zero. LeakyClamp (Teal line)
-            preserves negative data, gently sloping down to a safe Floor Clamp
-            (-0.1).
+            The signal (animated dot) sweeps from −1.2 to +1.2.
+            <strong>ReLU</strong> (grey dashed) kills everything below zero.
+            <strong>LeakyClamp</strong> (teal) preserves negatives with a gentle
+            slope (≈0.1×), flooring at the learnable minimum (coral dashed line,
+            −0.1). The ghost of sub-threshold state survives, keeping gradients
+            alive across all 60 non-differentiable spike barriers (6 layers × 10
+            timesteps).
           </div>
         </div>
       </div>
 
-      <!-- STEP 7: EMA READOUT -->
+      <!-- ═══════════════════════════════════════════════ STEP 7: EMA ════ -->
       <div class="card">
-        <div class="step-badge">Step 7: The Final Bottleneck</div>
-        <h2>EMA Temporal Readout</h2>
+        <div class="step-badge">Step 7 · The Final Bottleneck</div>
+        <h2>EMA Temporal Readout  –  From Spikes to Floats</h2>
         <p>
-          After cascading through 6 deep layers, the network holds 10 discrete
-          timesteps of scattered 1-bit binary spikes. How do we accurately
-          predict a precise English word using only scattered 1s and 0s?
-          <strong>We don't.</strong>
+          After 6 deep layers, the network holds 10 timesteps of scattered 1-bit
+          binary spikes. How do you accurately predict which of 128,000 English
+          words comes next from scattered ones and zeros?
+          <strong>You don't.</strong>
         </p>
         <p>
-          The final layer <em>ignores its own spikes</em>. Instead, it extracts
-          the continuous 16-bit float "water level" (<code>v_membrane</code>)
-          from the buckets before they convert to spikes, collapsing those 10
-          frames back into 1 single, dense float vector using an
-          <strong>Exponential Moving Average (EMA)</strong>.
+          The final <code>readout_lif</code> passes the spike stream through one
+          last LIF step to accumulate its
+          <strong>continuous 16-bit membrane potential</strong> tensor
+          <code>v_membrane (10 × S × 512)</code>. Rather than doing a simple
+          mean over timesteps (which discards temporal ordering), Nord applies
+          an <strong>Exponential Moving Average</strong>  –  giving the most
+          recent timestep the highest weight. The learnable decay
+          <code>α ≈ 0.8</code> means the contribution of timestep
+          <em>t</em> scales as <code>(1−α)·α^(9−t)</code>.
+        </p>
+        <p>
+          This hybrid readout (smoothed membrane potential + mean spike rate)
+          bypasses the fundamental 1-bit bottleneck that makes SNN language
+          modeling "impossible."
         </p>
 
-        <div class="vis-container">
-          <canvas id="emaCanvas" data-height="450"></canvas>
+        <div class="code-window">
+          <div class="code-header">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <span class="code-fname"
+              >nord_core.py · NordModel.forward()  –  EMA readout (FIX #6)</span
+            >
+          </div>
+          <div class="code-body">
+            <pre><code><span class="c-c"># Readout LIF: spikes AND membrane potential are returned</span>
+readout_spikes, v_membrane = readout_lif(x_flat)  <span class="c-c"># (T=10, B×S, D=512)</span>
+
+<span class="c-c"># ═══ FIX #6: EMA Temporal Smoothing ═══</span>
+alpha = sigmoid(readout_ema_raw)   <span class="c-c"># learnable α ≈ 0.80</span>
+ema = zeros(B*S, D)
+<span class="c-k">for</span> t <span class="c-k">in</span> <span class="c-f">range</span>(T_total):         <span class="c-c"># t=0..9</span>
+    ema = alpha * ema + (<span class="c-n">1</span> - alpha) * v_membrane[t]
+<span class="c-c"># Weight of v[t] in final ema = (1-α)·α^(9−t)</span>
+<span class="c-c"># t=9 → 0.200 (most recent, highest)   t=0 → 0.027 (oldest, lowest)</span>
+
+<span class="c-c"># Hybrid: smoothed membrane + spike rate → LM head → 128k logits</span>
+readout = ema.reshape(B,S,D) + readout_spikes.mean(dim=<span class="c-n">0</span>).reshape(B,S,D)
+logits  = lm_head(layernorm(readout))  <span class="c-c"># (B, S, 128256)</span></code></pre>
+          </div>
+        </div>
+
+        <div class="vis-wrap">
+          <canvas id="emaCanvas"></canvas>
           <div class="vis-caption">
-            Isometric EMA Collapse. The 10 temporal frames (Y-axis) flow
-            forward. Older steps fade into obscurity (EMA decay), while the most
-            recent steps dominate, safely collapsing into the Final 1D Dense
-            Float Vector (Bottom).
+            10 membrane potential "frames" (rows, T0→T9) each carrying a
+            512-dimensional float signal across the horizontal columns. EMA
+            weight (shown to the left of each row) grows exponentially:
+            <strong>T9 contributes 7× more</strong>
+            than T0. The bottom row shows the final collapsed 1-D output vector
+             –  still continuous floats, not 1-bit spikes  –  fed directly into
+            the 128k-vocab language head.
           </div>
         </div>
       </div>
 
-      <!-- STEP 8: FULL STACK -->
-      <div class="card" style="margin-bottom: 8rem; padding: 40px 20px">
-        <div class="step-badge">The Global Map</div>
-        <h2 style="padding: 0 30px">The Full Architecture Pipeline</h2>
-        <p style="padding: 0 30px">
-          Bringing it all together: A static word enters the base, fractures
-          into 10 temporal streams, converts to binary spikes, resonates through
-          6 deep <code>NordBlocks</code>, before finally collapsing back into a
-          dense float vector via the EMA Readout.
+      <!-- ═══════════════════════════════════════════════ STEP 8: FULL STACK ════ -->
+      <div class="card">
+        <div class="step-badge">Global Map</div>
+        <h2>The Complete Forward Pass</h2>
+        <p>
+          Everything assembled: one token enters at the bottom as an integer
+          index. It exits at the top as a probability distribution over 128,256
+          possible next words. Every stage has a dedicated visualization above
+           –  this final view shows them all connected, with flowing particles
+          representing the data tensor as it transforms through Nord's
+          architecture.
+        </p>
+        <p>
+          Notice how the tensor <em>shape</em> changes at each critical stage:
+          <code>[1]</code> (token) → <code>[512]</code> (embed) →
+          <code>[10×512]</code> (temporal) → <code>[10×512]</code> (binary
+          spikes, ×6 blocks) → <code>[10×512]</code> (membrane) →
+          <code>[512]</code> (EMA collapse) → <code>[128k]</code> (logits).
         </p>
 
-        <div
-          class="vis-container"
-          style="
-            background: var(--bg-code);
-            margin: 0;
-            border-radius: 0 0 20px 20px;
-            border: none;
-            border-top: 1px solid var(--border-color);
-          "
-        >
-          <canvas id="stackCanvas" data-height="950"></canvas>
-          <div
-            class="vis-caption"
-            style="
-              border-color: rgba(255, 255, 255, 0.05);
-              background: var(--bg-code);
-              color: var(--text-faint);
-            "
-          >
-            True Isometric Z-Sorted Architecture Map. Fixed boundaries and
-            scaling. Notice the 10 distinct temporal streams moving smoothly
-            from bottom to top without clipping. Fast paths (Teal) fly upward
-            rapidly, while Slow paths (Amber) progress steadily.
+        <div class="vis-wrap">
+          <canvas id="stackCanvas"></canvas>
+          <div class="vis-caption">
+            Vertical pipeline. Teal particles = fast-path activations (T_fast).
+            Amber = slow-path. Particles narrow at LIF stages (binary spikes,
+            97% dead). At EMA readout they reconverge into a single dense
+            stream. Watch 6× NordBlock layers: each one adds the Resonance
+            residual then the FFN residual, both gated by LeakyClamp.
           </div>
         </div>
       </div>
     </main>
 
-    <footer
-      style="
-        text-align: center;
-        padding: 60px 0;
-        color: var(--text-muted);
-        font-size: 0.95rem;
-        border-top: 1px solid var(--border-color);
-        background: var(--bg-panel);
-      "
-    >
+    <footer>
       <div class="container">
         <p>
-          Engineered with Vanilla JS Canvas & a Custom Depth-Sorted Isometric
-          Physics Engine.
+          Pure Canvas 2D  –  every animation is a direct simulation of the
+          running source code.
         </p>
-        <p
-          style="
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            margin-top: 10px;
-            color: var(--text-faint);
-          "
-        >
-          Project Nord • 144M SNN • Built from scratch
+        <p class="mono" style="margin-top: 10px">
+          Project Nord · 144M SNN · 97% Sparsity · $10 Training Cost · Built
+          from Scratch
         </p>
       </div>
     </footer>
 
-    <!-- ==========================================================================
-         JAVASCRIPT: CUSTOM DEPTH-SORTED ISOMETRIC ENGINE & ANIMATIONS
-         ========================================================================== -->
-    <script>
-      const Theme = {
-        update() {
-          const root = getComputedStyle(document.documentElement);
-          this.teal = root.getPropertyValue("--accent-teal").trim();
-          this.amber = root.getPropertyValue("--accent-amber").trim();
-          this.coral = root.getPropertyValue("--accent-coral").trim();
-          this.panel = root.getPropertyValue("--bg-panel").trim();
-          this.code = root.getPropertyValue("--bg-code").trim();
-          this.border = root.getPropertyValue("--border-strong").trim();
-          this.text = root.getPropertyValue("--text-main").trim();
-          this.sub = root.getPropertyValue("--text-muted").trim();
-          this.green = root.getPropertyValue("--accent-green").trim();
-          this.mask = "rgba(0, 0, 0, 0.15)";
-        },
-      };
-      Theme.update();
-      window
-        .matchMedia("(prefers-color-scheme: dark)")
-        .addEventListener("change", () => Theme.update());
-
-      // Universal Isometric Scene Graph (Fixes all Z-sorting and bounds issues)
-      class IsoScene {
-        constructor(canvasId, targetHeight = 400) {
-          this.canvas = document.getElementById(canvasId);
-          this.ctx = this.canvas.getContext("2d", { alpha: false });
-          this.targetHeight = targetHeight;
-          this.items = [];
-          this.items2D = [];
-          this.scale = 2.0;
-          this.offX = 0;
-          this.offY = 0;
-          this.angle = Math.PI / 6;
-          this.mouseX = -1000;
-          this.mouseY = -1000;
-
-          this.handleResize();
-          window.addEventListener("resize", () => this.handleResize());
-
-          this.canvas.addEventListener("mousemove", (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            this.mouseX =
-              (e.clientX - rect.left) *
-              (this.canvas.width / rect.width / (window.devicePixelRatio || 1));
-            this.mouseY =
-              (e.clientY - rect.top) *
-              (this.canvas.height /
-                rect.height /
-                (window.devicePixelRatio || 1));
-          });
-          this.canvas.addEventListener("mouseleave", () => {
-            this.mouseX = -1000;
-            this.mouseY = -1000;
-          });
-        }
-
-        handleResize() {
-          const rect = this.canvas.parentElement.getBoundingClientRect();
-          const dpr = window.devicePixelRatio || 1;
-          this.w = rect.width;
-          this.h = this.targetHeight;
-          this.canvas.style.width = this.w + "px";
-          this.canvas.style.height = this.h + "px";
-          this.canvas.width = this.w * dpr;
-          this.canvas.height = this.h * dpr;
-          this.ctx.scale(dpr, dpr);
-          this.offX = this.w / 2;
-          this.offY = this.h * 0.7;
-        }
-
-        project(x, y, z) {
-          const sx = (x - y) * Math.cos(this.angle) * this.scale + this.offX;
-          const sy =
-            (x + y) * Math.sin(this.angle) * this.scale -
-            z * this.scale +
-            this.offY;
-          return { x: sx, y: sy };
-        }
-
-        clear() {
-          this.items = [];
-          this.items2D = [];
-        }
-
-        addBox(x, y, z, w, d, h, colorTop, alpha = 1.0, wire = false) {
-          const cx = x + w / 2;
-          const cy = y + d / 2;
-          const cz = z + h / 2;
-          const depth = cx + cy + cz; // Perfect occlusion sort for this projection
-          this.items.push({
-            type: "box",
-            depth,
-            x,
-            y,
-            z,
-            w,
-            d,
-            h,
-            colorTop,
-            alpha,
-            wire,
-          });
-        }
-
-        addLine(x1, y1, z1, x2, y2, z2, color, width, alpha = 1.0) {
-          const depth = (x1 + x2) / 2 + (y1 + y2) / 2 + (z1 + z2) / 2;
-          this.items.push({
-            type: "line",
-            depth,
-            x1,
-            y1,
-            z1,
-            x2,
-            y2,
-            z2,
-            color,
-            width,
-            alpha,
-          });
-        }
-
-        addParticle(x, y, z, radius, color, alpha = 1.0) {
-          const depth = x + y + z;
-          this.items.push({
-            type: "particle",
-            depth,
-            x,
-            y,
-            z,
-            radius,
-            color,
-            alpha,
-          });
-        }
-
-        addText(x, y, z, text, color, font, align = "center", yOffset = 0) {
-          this.items2D.push({ x, y, z, text, color, font, align, yOffset });
-        }
-
-        render() {
-          this.ctx.fillStyle = getComputedStyle(
-            this.canvas.parentElement,
-          ).backgroundColor;
-          this.ctx.fillRect(0, 0, this.w, this.h);
-
-          this.items.sort((a, b) => a.depth - b.depth);
-
-          for (let item of this.items) {
-            this.ctx.globalAlpha = item.alpha;
-            if (item.type === "box") {
-              const p000 = this.project(item.x, item.y, item.z);
-              const p100 = this.project(item.x + item.w, item.y, item.z);
-              const p010 = this.project(item.x, item.y + item.d, item.z);
-              const p110 = this.project(
-                item.x + item.w,
-                item.y + item.d,
-                item.z,
-              );
-              const p001 = this.project(item.x, item.y, item.z + item.h);
-              const p101 = this.project(
-                item.x + item.w,
-                item.y,
-                item.z + item.h,
-              );
-              const p011 = this.project(
-                item.x,
-                item.y + item.d,
-                item.z + item.h,
-              );
-              const p111 = this.project(
-                item.x + item.w,
-                item.y + item.d,
-                item.z + item.h,
-              );
-
-              if (!item.wire) {
-                // Left
-                this.ctx.fillStyle = item.colorTop;
-                this.ctx.beginPath();
-                this.ctx.moveTo(p000.x, p000.y);
-                this.ctx.lineTo(p010.x, p010.y);
-                this.ctx.lineTo(p011.x, p011.y);
-                this.ctx.lineTo(p001.x, p001.y);
-                this.ctx.fill();
-                this.ctx.fillStyle = "rgba(0,0,0,0.15)";
-                this.ctx.fill();
-                // Right
-                this.ctx.fillStyle = item.colorTop;
-                this.ctx.beginPath();
-                this.ctx.moveTo(p000.x, p000.y);
-                this.ctx.lineTo(p100.x, p100.y);
-                this.ctx.lineTo(p101.x, p101.y);
-                this.ctx.lineTo(p001.x, p001.y);
-                this.ctx.fill();
-                this.ctx.fillStyle = "rgba(0,0,0,0.35)";
-                this.ctx.fill();
-                // Top
-                this.ctx.fillStyle = item.colorTop;
-                this.ctx.beginPath();
-                this.ctx.moveTo(p001.x, p001.y);
-                this.ctx.lineTo(p101.x, p101.y);
-                this.ctx.lineTo(p111.x, p111.y);
-                this.ctx.lineTo(p011.x, p011.y);
-                this.ctx.fill();
-              }
-              this.ctx.strokeStyle = item.wire
-                ? item.colorTop
-                : "rgba(100,100,100,0.2)";
-              this.ctx.lineWidth = 1;
-              this.ctx.stroke();
-            } else if (item.type === "line") {
-              const p1 = this.project(item.x1, item.y1, item.z1);
-              const p2 = this.project(item.x2, item.y2, item.z2);
-              this.ctx.strokeStyle = item.color;
-              this.ctx.lineWidth = item.width;
-              this.ctx.beginPath();
-              this.ctx.moveTo(p1.x, p1.y);
-              this.ctx.lineTo(p2.x, p2.y);
-              this.ctx.stroke();
-            } else if (item.type === "particle") {
-              const p = this.project(item.x, item.y, item.z);
-              this.ctx.fillStyle = item.color;
-              this.ctx.beginPath();
-              this.ctx.arc(p.x, p.y, item.radius, 0, Math.PI * 2);
-              this.ctx.fill();
-            }
-          }
-          this.ctx.globalAlpha = 1.0;
-          for (let txt of this.items2D) {
-            const pt = this.project(txt.x, txt.y, txt.z);
-            this.ctx.fillStyle = txt.color;
-            this.ctx.font = txt.font;
-            this.ctx.textAlign = txt.align;
-            this.ctx.fillText(txt.text, pt.x, pt.y + txt.yOffset);
-          }
-        }
-      }
-
-      // Main Render Loop
-      const animations = [];
-      let globalTime = 0;
-      function renderLoop() {
-        animations.forEach((anim) => anim(globalTime));
-        globalTime++;
-        requestAnimationFrame(renderLoop);
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        // --- 1. ENCODER ---
-        const encScene = new IsoScene("encoderCanvas", 400);
-        animations.push((t) => {
-          encScene.clear();
-          encScene.scale = 1.6; // Scale down to prevent top cutoff
-          encScene.offY = encScene.h - 60;
-
-          encScene.addBox(-100, -10, 0, 200, 20, 10, Theme.code);
-          encScene.addText(
-            0,
-            0,
-            -10,
-            "Static Word Embedding[512]",
-            Theme.text,
-            "bold 13px sans-serif",
-            "center",
-            40,
-          );
-
-          const topZ = 120; // Taller to show amplitude
-          for (let i = 0; i < 10; i++) {
-            const isSlow = i >= 8;
-            const xPos = -90 + i * 20;
-            encScene.addLine(
-              xPos + 5,
-              0,
-              10,
-              xPos + 5,
-              0,
-              topZ,
-              isSlow ? Theme.amber : Theme.teal,
-              2,
-              0.3,
-            );
-
-            // Fast = high amplitude and volatile. Slow = low amp and slow changes.
-            let h = isSlow
-              ? 25 + Math.sin(t * 0.01 + i) * 5
-              : 20 + Math.max(0, Math.sin(t * 0.12 + i * 1.5) * 60);
-
-            encScene.addBox(
-              xPos,
-              -5,
-              topZ,
-              10,
-              10,
-              h,
-              isSlow ? Theme.amber : Theme.teal,
-              0.95,
-            );
-            encScene.addText(
-              xPos,
-              0,
-              topZ - 10,
-              `T${i + 1}`,
-              Theme.text,
-              "11px monospace",
-              "center",
-              15,
-            );
-          }
-          encScene.addText(
-            -80,
-            -30,
-            topZ,
-            "T_fast (x8)",
-            Theme.teal,
-            "bold 13px sans-serif",
-            "right",
-          );
-          encScene.addText(
-            80,
-            -30,
-            topZ,
-            "T_slow (x2)",
-            Theme.amber,
-            "bold 13px sans-serif",
-            "left",
-          );
-          encScene.render();
-        });
-
-        // --- 2. LIF NEURON ---
-        const lifCanvas = document.getElementById("lifCanvas");
-        const lifCtx = lifCanvas.getContext("2d");
-        const lifLength = 900;
-        const lifData = [];
-        let v_mem = -0.1,
-          i_syn = 0;
-        let refracCounter = 0;
-
-        // Accurate LIF simulation loop
-        for (let t = 0; t < lifLength; t++) {
-          let phase = t % 200;
-          // Inject enough current to guarantee spiking (0.2 input combined with decay = spikes)
-          let current = phase > 20 && phase < 120 ? 0.25 : 0.0;
-
-          if (refracCounter > 0) {
-            v_mem = -0.1;
-            refracCounter--;
-            lifData.push({
-              x: t,
-              v: v_mem,
-              c: current,
-              spike: false,
-              refrac: true,
-            });
-          } else {
-            i_syn = 0.5 * i_syn + current; // tau_syn
-            v_mem = 0.9 * v_mem + 0.1 * i_syn; // tau_mem
-            if (v_mem >= 0.25) {
-              lifData.push({
-                x: t,
-                v: 0.25,
-                c: current,
-                spike: true,
-                refrac: false,
-              });
-              v_mem = -0.1;
-              refracCounter = 25; // Visual extension of 2 timesteps
-            } else {
-              lifData.push({
-                x: t,
-                v: v_mem,
-                c: current,
-                spike: false,
-                refrac: false,
-              });
-            }
-          }
-        }
-
-        animations.push((t) => {
-          const rect = lifCanvas.parentElement.getBoundingClientRect();
-          const w = rect.width,
-            h = 350,
-            dpr = window.devicePixelRatio || 1;
-          lifCanvas.width = w * dpr;
-          lifCanvas.height = h * dpr;
-          lifCanvas.style.width = w + "px";
-          lifCanvas.style.height = h + "px";
-          lifCtx.scale(dpr, dpr);
-          lifCtx.fillStyle = Theme.panel;
-          lifCtx.fillRect(0, 0, w, h);
-
-          const baseY = h * 0.55;
-          const scaleY = 350;
-          const thY = baseY - 0.25 * scaleY;
-          const resY = baseY - -0.1 * scaleY;
-          const offset = Math.floor(t * 1.5) % lifLength;
-
-          // Guidelines
-          lifCtx.setLineDash([4, 4]);
-          lifCtx.strokeStyle = Theme.coral;
-          lifCtx.beginPath();
-          lifCtx.moveTo(0, thY);
-          lifCtx.lineTo(w, thY);
-          lifCtx.stroke();
-          lifCtx.fillStyle = Theme.coral;
-          lifCtx.font = "12px monospace";
-          lifCtx.fillText("Threshold (0.25)", 10, thY - 8);
-          lifCtx.strokeStyle = Theme.border;
-          lifCtx.beginPath();
-          lifCtx.moveTo(0, resY);
-          lifCtx.lineTo(w, resY);
-          lifCtx.stroke();
-          lifCtx.setLineDash([]);
-          lifCtx.fillStyle = Theme.text;
-          lifCtx.fillText("Resting (-0.1)", 10, resY + 16);
-
-          // Refractory Backgrounds & Current
-          lifCtx.beginPath();
-          lifCtx.strokeStyle = Theme.green;
-          lifCtx.lineWidth = 1.5;
-          let firstC = true;
-          for (let i = 0; i < w; i++) {
-            let pt = lifData[(offset + i) % lifLength];
-            if (pt.refrac) {
-              lifCtx.fillStyle = "rgba(0,0,0,0.05)";
-              lifCtx.fillRect(i, thY - 20, 1, resY - thY + 40);
-            }
-            // Draw current graph at bottom
-            let cY = h - 20 - pt.c * 150;
-            if (firstC) {
-              lifCtx.moveTo(i, cY);
-              firstC = false;
-            } else {
-              lifCtx.lineTo(i, cY);
-            }
-          }
-          lifCtx.stroke();
-          lifCtx.fillStyle = Theme.green;
-          lifCtx.fillText("Input Current", 10, h - 30);
-
-          // V_mem Trace
-          lifCtx.beginPath();
-          lifCtx.strokeStyle = Theme.teal;
-          lifCtx.lineWidth = 2.5;
-          let firstV = true;
-          for (let i = 0; i < w; i++) {
-            const pt = lifData[(offset + i) % lifLength];
-            const yPos = baseY - pt.v * scaleY;
-            if (firstV) {
-              lifCtx.moveTo(i, yPos);
-              firstV = false;
-            } else {
-              lifCtx.lineTo(i, yPos);
-            }
-
-            if (pt.spike) {
-              lifCtx.fillStyle = Theme.coral;
-              lifCtx.fillRect(i - 1, thY - 30, 3, 30);
-              lifCtx.font = "bold 12px sans-serif";
-              lifCtx.fillText("SPIKE", i - 15, thY - 35);
-            }
-          }
-          lifCtx.stroke();
-        });
-
-        // --- 3. CASCADE RING (Interactive) ---
-        const casScene = new IsoScene("cascadeCanvas", 450);
-        const casNodes = 64;
-        let casMem = new Array(casNodes).fill(0);
-        let lastSpikeTime = 0;
-
-        animations.push((t) => {
-          casScene.clear();
-          casScene.scale = 2.2;
-          casScene.offY = casScene.h * 0.7;
-          const R = 75;
-
-          // Decay
-          for (let i = 0; i < casNodes; i++) casMem[i] *= 0.88;
-
-          // Interactive Spike Trigger
-          let hoveredNode = -1;
-          for (let i = 0; i < casNodes; i++) {
-            let a = (i / casNodes) * Math.PI * 2;
-            let pt = casScene.project(Math.cos(a) * R, Math.sin(a) * R, 0);
-            if (
-              Math.hypot(pt.x - casScene.mouseX, pt.y - casScene.mouseY) < 20
-            ) {
-              hoveredNode = i;
-              break;
-            }
-          }
-
-          if (hoveredNode !== -1 && t - lastSpikeTime > 5) {
-            lastSpikeTime = t;
-            // Inject spike and ripples
-            const w = [0.1, 0.4, 0.8, 1.2, 0.8, 0.4, 0.1];
-            for (let i = -3; i <= 3; i++) {
-              casMem[(hoveredNode + i + casNodes) % casNodes] += w[i + 3];
-            }
-          } else if (hoveredNode === -1 && Math.random() < 0.01) {
-            // Occasional random spark if no interaction
-            casMem[Math.floor(Math.random() * casNodes)] += 1.2;
-          }
-
-          for (let i = 0; i < casNodes; i++) {
-            let a1 = (i / casNodes) * Math.PI * 2;
-            let a2 = ((i + 1) / casNodes) * Math.PI * 2;
-            casScene.addLine(
-              Math.cos(a1) * R,
-              Math.sin(a1) * R,
-              0,
-              Math.cos(a2) * R,
-              Math.sin(a2) * R,
-              0,
-              Theme.border,
-              1.5,
-            );
-          }
-
-          for (let i = 0; i < casNodes; i++) {
-            let a = (i / casNodes) * Math.PI * 2;
-            let h = 2 + casMem[i] * 20;
-            let col = Theme.code;
-            if (casMem[i] > 1.0)
-              col = Theme.coral; // Firing
-            else if (casMem[i] > 0.1) col = Theme.teal; // Ripple
-            casScene.addBox(
-              Math.cos(a) * R - 2,
-              Math.sin(a) * R - 2,
-              0,
-              4,
-              4,
-              h,
-              col,
-            );
-          }
-          casScene.render();
-        });
-
-        // --- 4. TOP-K RESONANCE ---
-        const resScene = new IsoScene("resonanceCanvas", 450);
-        const resN = 14;
-        const resGrid = Array.from({ length: resN }, (_, r) =>
-          Array.from({ length: resN }, (_, c) => ({
-            val: Math.random() * 20 + 5,
-            top: false,
-          })),
-        );
-        // Pre-calculate Top-3 per row
-        for (let r = 0; r < resN; r++) {
-          let row = resGrid[r]
-            .map((cell, c) => ({ c, val: cell.val }))
-            .filter((x) => x.c <= r); // Causal mask
-          row.sort((a, b) => b.val - a.val);
-          row.slice(0, 3).forEach((x) => (resGrid[r][x.c].top = true));
-        }
-
-        animations.push((t) => {
-          resScene.clear();
-          resScene.scale = 22;
-          resScene.offY = 120;
-          let scanRow = Math.floor(t / 40) % resN; // Scanner moves row by row
-
-          for (let r = 0; r < resN; r++) {
-            for (let c = 0; c < resN; c++) {
-              if (c > r) continue; // Future mask invisible
-              let cell = resGrid[r][c];
-
-              // Logic: Above scanRow = already processed (crushed if not top). Below scanRow = waiting (visible).
-              let isProcessed = r < scanRow;
-              let isCurrent = r === scanRow;
-
-              let h = cell.val;
-              let col = Theme.border;
-
-              if (isProcessed) {
-                if (cell.top) {
-                  col = Theme.teal;
-                } else {
-                  h = 1;
-                  col = "rgba(0,0,0,0.1)";
-                } // Crushed
-              } else if (isCurrent) {
-                col = Theme.coral;
-                h += Math.sin(t * 0.5) * 5; // Scanning highlight
-              }
-
-              resScene.addBox(c, r, 0, 0.8, 0.8, h / 20, col);
-            }
-          }
-          resScene.addText(
-            resN,
-            0,
-            0,
-            "Past Tokens →",
-            Theme.text,
-            "bold 13px sans-serif",
-            "left",
-            -10,
-          );
-          resScene.addText(
-            0,
-            resN + 1,
-            0,
-            "Current Token →",
-            Theme.text,
-            "bold 13px sans-serif",
-            "right",
-            0,
-          );
-          resScene.addText(
-            resN - 3,
-            3,
-            0,
-            "Masked Future",
-            Theme.sub,
-            "bold 12px sans-serif",
-            "left",
-            -30,
-          );
-          resScene.render();
-        });
-
-        // --- 5. STDP (Reward-Modulated) ---
-        const stdpScene = new IsoScene("stdpCanvas", 450);
-        animations.push((t) => {
-          stdpScene.clear();
-          stdpScene.scale = 1.8;
-          stdpScene.offY = stdpScene.h / 2 + 50;
-
-          let phase = t % 600;
-          let isCorrect = Math.floor(t / 600) % 2 === 0; // Alternate scenarios
-          const preX = -90,
-            postX = 90;
-
-          stdpScene.addBox(preX - 15, -15, 0, 30, 30, 20, Theme.code);
-          stdpScene.addText(
-            preX,
-            20,
-            0,
-            "Neuron A",
-            Theme.text,
-            "bold 14px sans-serif",
-            "center",
-            20,
-          );
-          stdpScene.addBox(postX - 15, -15, 0, 30, 30, 20, Theme.code);
-          stdpScene.addText(
-            postX,
-            20,
-            0,
-            "Neuron B",
-            Theme.text,
-            "bold 14px sans-serif",
-            "center",
-            20,
-          );
-
-          // Default state
-          let wireColor = Theme.border;
-          let wireThick = 2;
-
-          // Phase Logic
-          if (phase > 350) {
-            wireColor = isCorrect ? Theme.teal : Theme.coral;
-            wireThick = isCorrect ? 7 : 1;
-          }
-
-          stdpScene.addLine(
-            preX + 15,
-            0,
-            10,
-            postX - 15,
-            0,
-            10,
-            wireColor,
-            wireThick,
-          );
-
-          // 1. Pre Spike
-          if (phase > 50 && phase < 150)
-            stdpScene.addBox(preX - 5, -5, 25, 10, 10, 10, Theme.coral);
-          // 2. Travel
-          if (phase >= 100 && phase <= 200) {
-            let travel = (phase - 100) / 100;
-            let cx = preX + 15 + travel * (postX - preX - 30);
-            stdpScene.addBox(cx - 3, -3, 10, 6, 6, 6, Theme.coral);
-          }
-          // 3. Post Spike
-          if (phase > 180 && phase < 280)
-            stdpScene.addBox(postX - 5, -5, 25, 10, 10, 10, Theme.coral);
-
-          // 4. Reward evaluation
-          if (phase > 250 && phase < 450) {
-            let dropZ = Math.max(10, 150 - (phase - 250) * 4);
-            let planeCol = isCorrect
-              ? "rgba(16, 185, 129, 0.4)"
-              : "rgba(225, 29, 72, 0.2)";
-            stdpScene.addBox(
-              preX,
-              -20,
-              dropZ,
-              postX - preX,
-              40,
-              2,
-              planeCol,
-              0.8,
-            );
-            if (dropZ === 10) {
-              stdpScene.addText(
-                0,
-                -30,
-                40,
-                isCorrect
-                  ? "+ Reward: Loss Dropped!"
-                  : "- Penalty: Loss Increased",
-                isCorrect ? Theme.green : Theme.coral,
-                "bold 14px sans-serif",
-              );
-              stdpScene.addText(
-                0,
-                -30,
-                0,
-                isCorrect ? "Synapse Strengthened" : "Synapse Weakened",
-                isCorrect ? Theme.teal : Theme.coral,
-                "bold 12px sans-serif",
-                "center",
-                20,
-              );
-            }
-          }
-          stdpScene.render();
-        });
-
-        // --- 6. LEAKY CLAMP ---
-        const lkyCanvas = document.getElementById("leakyCanvas");
-        const lkyCtx = lkyCanvas.getContext("2d");
-
-        animations.push((t) => {
-          const rect = lkyCanvas.parentElement.getBoundingClientRect();
-          const w = rect.width,
-            h = 350,
-            dpr = window.devicePixelRatio || 1;
-          lkyCanvas.width = w * dpr;
-          lkyCanvas.height = h * dpr;
-          lkyCanvas.style.width = w + "px";
-          lkyCanvas.style.height = h + "px";
-          lkyCtx.scale(dpr, dpr);
-          lkyCtx.fillStyle = Theme.panel;
-          lkyCtx.fillRect(0, 0, w, h);
-
-          const cx = w / 2,
-            cy = h / 2,
-            fl = 50,
-            slp = 0.3,
-            trX = cx - fl / slp;
-
-          lkyCtx.strokeStyle = Theme.border;
-          lkyCtx.beginPath();
-          lkyCtx.moveTo(0, cy);
-          lkyCtx.lineTo(w, cy);
-          lkyCtx.moveTo(cx, 0);
-          lkyCtx.lineTo(cx, h);
-          lkyCtx.stroke();
-
-          // ReLU
-          lkyCtx.strokeStyle = Theme.sub;
-          lkyCtx.setLineDash([6, 6]);
-          lkyCtx.lineWidth = 2;
-          lkyCtx.beginPath();
-          lkyCtx.moveTo(cx - 200, cy);
-          lkyCtx.lineTo(cx, cy);
-          lkyCtx.lineTo(cx + 150, cy - 150);
-          lkyCtx.stroke();
-          lkyCtx.setLineDash([]);
-
-          // LeakyClamp
-          lkyCtx.strokeStyle = Theme.teal;
-          lkyCtx.lineWidth = 3;
-          lkyCtx.beginPath();
-          lkyCtx.moveTo(cx - 250, cy + fl);
-          lkyCtx.lineTo(trX, cy + fl);
-          lkyCtx.lineTo(cx, cy);
-          lkyCtx.lineTo(cx + 150, cy - 150);
-          lkyCtx.stroke();
-
-          // Floor Target
-          lkyCtx.strokeStyle = Theme.coral;
-          lkyCtx.setLineDash([3, 4]);
-          lkyCtx.beginPath();
-          lkyCtx.moveTo(cx - 280, cy + fl);
-          lkyCtx.lineTo(cx, cy + fl);
-          lkyCtx.stroke();
-          lkyCtx.setLineDash([]);
-
-          // Animated tracing particle
-          let pX = cx - 200 + ((t * 2) % 350);
-          let pY =
-            pX >= cx ? cy - (pX - cx) : Math.min(cy + fl, cy - (pX - cx) * slp);
-
-          lkyCtx.fillStyle = Theme.code;
-          lkyCtx.beginPath();
-          lkyCtx.arc(pX, pY, 8, 0, Math.PI * 2);
-          lkyCtx.fill();
-          lkyCtx.fillStyle = Theme.teal;
-          lkyCtx.beginPath();
-          lkyCtx.arc(pX, pY, 5, 0, Math.PI * 2);
-          lkyCtx.fill();
-
-          lkyCtx.fillStyle = Theme.sub;
-          lkyCtx.font = "14px sans-serif";
-          lkyCtx.fillText("ReLU", cx + 20, cy + 30);
-          lkyCtx.fillStyle = Theme.teal;
-          lkyCtx.font = "bold 16px sans-serif";
-          lkyCtx.fillText("LeakyClamp", cx - 180, cy - 20);
-          lkyCtx.fillStyle = Theme.coral;
-          lkyCtx.font = "12px monospace";
-          lkyCtx.fillText("Floor Clamp (-0.1)", cx - 280, cy + fl + 20);
-        });
-
-        // --- 7. EMA READOUT ---
-        const emaScene = new IsoScene("emaCanvas", 450);
-        animations.push((t) => {
-          emaScene.clear();
-          emaScene.scale = 2.0;
-          emaScene.offY = emaScene.h * 0.45;
-          const tSteps = 10,
-            dDims = 8,
-            spacing = 18;
-
-          for (let tm = 0; tm < tSteps; tm++) {
-            for (let d = 0; d < dDims; d++) {
-              let val = Math.sin(tm * 0.5 + d * 1.2 + t * 0.05) * 10 + 15;
-              let weight = Math.pow(0.65, tSteps - 1 - tm); // Stronger EMA decay visualization
-              let alpha = 0.05 + weight * 0.95;
-              let col = tm === tSteps - 1 ? Theme.teal : Theme.text;
-              emaScene.addBox(
-                d * spacing,
-                tm * spacing,
-                0,
-                12,
-                12,
-                val,
-                col,
-                alpha,
-              );
-            }
-          }
-
-          const resZ = -80;
-          for (let d = 0; d < dDims; d++) {
-            let h = 20 + Math.sin(d * 1.2 + t * 0.05) * 10;
-            emaScene.addBox(
-              d * spacing,
-              (tSteps + 3) * spacing,
-              resZ,
-              12,
-              12,
-              h,
-              Theme.teal,
-            );
-          }
-
-          emaScene.addLine(
-            (dDims / 2) * spacing,
-            tSteps * spacing,
-            0,
-            (dDims / 2) * spacing,
-            (tSteps + 3) * spacing,
-            resZ,
-            Theme.border,
-            2,
-          );
-          emaScene.addText(
-            (dDims / 2) * spacing,
-            -20,
-            0,
-            "10 Temporal Frames Flowing",
-            Theme.text,
-            "bold 13px sans-serif",
-            "right",
-            -20,
-          );
-          emaScene.addText(
-            (dDims / 2) * spacing,
-            (tSteps + 3) * spacing,
-            resZ,
-            "1 Dense Output Vector",
-            Theme.teal,
-            "bold 14px sans-serif",
-            "left",
-            30,
-          );
-          emaScene.render();
-        });
-
-        // --- 8. FULL STACK MAP ---
-        const stkScene = new IsoScene("stackCanvas", 950);
-        function addLayerPlate(z, h, type, title, desc, w) {
-          let col = Theme.panel;
-          if (type === "enc") col = "rgba(217, 119, 6, 0.2)";
-          if (type === "lif") col = "rgba(13, 148, 136, 0.2)";
-          if (type === "blk") col = "rgba(37, 99, 235, 0.15)";
-          stkScene.addBox(0, 0, z, 140, 80, h, col, 0.9);
-          stkScene.addLine(
-            140,
-            40,
-            z + h / 2,
-            220,
-            40,
-            z + h / 2,
-            Theme.border,
-            1,
-            0.5,
-          );
-          stkScene.addText(
-            225,
-            40,
-            z + h / 2,
-            title,
-            Theme.text,
-            "bold 14px sans-serif",
-            "left",
-            -4,
-          );
-          stkScene.addText(
-            225,
-            40,
-            z + h / 2,
-            desc,
-            Theme.sub,
-            "12px monospace",
-            "left",
-            14,
-          );
-        }
-
-        animations.push((t) => {
-          stkScene.clear();
-          stkScene.scale = 1.35; // Lower scale to prevent clipping top/bottom
-          stkScene.offX = stkScene.w * 0.28; // Shift left so text doesn't clip right
-          stkScene.offY = stkScene.h * 0.9;
-
-          addLayerPlate(0, 5, "base", "Raw Input", "Static Token [512]");
-          addLayerPlate(
-            70,
-            10,
-            "enc",
-            "1. Temporal Encoder",
-            "Expands to 10 Timesteps",
-          );
-          addLayerPlate(150, 8, "lif", "2. Input LIF", "Voltage → Spikes");
-          addLayerPlate(
-            240,
-            15,
-            "blk",
-            "3. NordBlock 1/6",
-            "Cascade + Resonance",
-          );
-          addLayerPlate(
-            340,
-            15,
-            "blk",
-            "   NordBlock 2/6",
-            "Modulated by STDP",
-          );
-          addLayerPlate(
-            440,
-            15,
-            "blk",
-            "   NordBlock 6/6",
-            "Deep Feature Logic",
-          );
-          addLayerPlate(530, 8, "lif", "4. Readout LIF", "Extracts V_membrane");
-          addLayerPlate(
-            640,
-            10,
-            "enc",
-            "5. EMA Smoothing",
-            "Collapses 10 steps to 1",
-          );
-          addLayerPlate(
-            720,
-            5,
-            "base",
-            "6. Language Head",
-            "Vocabulary Logits [128k]",
-          );
-
-          // Flow Particles (Bottom to Top)
-          for (let i = 0; i < 10; i++) {
-            const isSlow = i >= 8;
-            const px = (i + 0.5) * 14,
-              py = 40;
-            stkScene.addLine(
-              px,
-              py,
-              5,
-              px,
-              py,
-              640,
-              isSlow ? Theme.amber : Theme.teal,
-              1.5,
-              0.15,
-            );
-
-            let speed = isSlow ? 0.8 : 3.5;
-            let offsetZ = (t * speed + i * 50) % 640;
-            if (offsetZ > 10)
-              stkScene.addParticle(
-                px,
-                py,
-                offsetZ,
-                3,
-                isSlow ? Theme.amber : Theme.teal,
-              );
-          }
-
-          // Converging lines at EMA
-          for (let i = 0; i < 10; i++)
-            stkScene.addLine(
-              (i + 0.5) * 14,
-              40,
-              540,
-              70,
-              40,
-              640,
-              Theme.border,
-              1,
-              0.4,
-            );
-
-          stkScene.render();
-        });
-
-        renderLoop();
-      });
-    </script>
+    <script src="script.js"></script>
   </body>
 </html>
