@@ -238,14 +238,14 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 2. LIF NEURON  –  bounded clipping to stop text overlaps
+// 2. LIF NEURON  –  bounded clipping, corrected i_syn bounds, spikes on top
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("lifCanvas", 380);
 
   // Pre-compute accurate LIF simulation matching nord_core.py
   const SIM = 2400;
-  const data = []; // { v, isyn, spike, refrac }
+  const data = [];
   let v = -0.1,
     isyn = 0.0,
     refrac = 0;
@@ -256,32 +256,31 @@ let gT = 0; // global time in seconds
 
   for (let s = 0; s < SIM; s++) {
     const ph = s % 220;
-    // Current burst: strong enough to guarantee spiking within burst
-    const cur = ph > 25 && ph < 130 ? 0.3 : 0.0;
+
+    // Simulate a small sub-threshold cascade bump from a neighbor,
+    // followed later by the main driving current burst
+    let cur = 0.0;
+    if (ph === 15 || ph === 16)
+      cur = 0.15; // neighbor cascade injection
+    else if (ph > 50 && ph < 140) cur = 0.28; // main driving burst
 
     if (refrac > 0) {
       // Refractory: clamp to v_reset
       isyn = tau_syn * isyn + cur;
       v = v_rst;
       refrac--;
-      data.push({ v, isyn, spike: false, refrac: true });
+      data.push({ v, isyn, spike: false, refrac: true, ph });
     } else {
       isyn = tau_syn * isyn + cur;
       const v_new = tau_mem * v + (1.0 - tau_mem) * isyn;
       if (v_new >= v_thr) {
-        data.push({ v: v_thr, isyn, spike: true, refrac: false });
+        data.push({ v: v_thr, isyn, spike: true, refrac: false, ph });
         v = v_new - v_thr; // soft reset
         refrac = 2; // 2-timestep refractory
       } else {
         v = v_new;
-        data.push({ v, isyn, spike: false, refrac: false });
+        data.push({ v, isyn, spike: false, refrac: false, ph });
       }
-    }
-  }
-  // Also add cascade injection markers (every spike gets a cascade pulse)
-  for (let i = 1; i < data.length; i++) {
-    if (data[i - 1].spike) {
-      data[i].cascade = true; // visual marker
     }
   }
 
@@ -290,39 +289,45 @@ let gT = 0; // global time in seconds
     const W = ch.w,
       H = ch.h;
     const PAD = 14,
-      LBL = 80; // Extended label width so threshold tags stay cleanly outside
-    const offset = Math.floor(t * 32) % SIM; // scroll speed
+      LBL = 80;
+    const offset = Math.floor(t * 32) % SIM; // smooth, legible scroll speed
 
-    // Three horizontal tracks
-    const trackH = (H - PAD * 2 - 20) / 3;
-    const vTrackY = PAD;
-    const iTrackY = PAD + trackH + 16;
-    const spkTrackY = PAD + trackH * 2 + 32;
     const plotW = W - LBL - PAD;
+
+    // Custom Track Heights: Spikes track is thinner, analog tracks are taller
+    const spkTrackH = 28;
+    const remainH = H - PAD * 2 - spkTrackH - 24;
+    const trackH = remainH / 2;
+
+    const spkTrackY = PAD;
+    const vTrackY = spkTrackY + spkTrackH + 12;
+    const iTrackY = vTrackY + trackH + 12;
 
     // ── Static Left Labels ──
     ctx.font = "600 11px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
+
+    ctx.fillStyle = T.coral;
+    ctx.fillText("spikes", LBL - 8, spkTrackY + spkTrackH / 2 + 4);
+
     ctx.fillStyle = T.teal;
     ctx.fillText("v_mem", LBL - 8, vTrackY + trackH / 2 + 4);
+
     ctx.fillStyle = T.green;
     ctx.fillText("i_syn", LBL - 8, iTrackY + trackH / 2 + 4);
-    ctx.fillStyle = T.coral;
-    ctx.fillText("spikes", LBL - 8, spkTrackY + 16);
 
-    // Helpers
-    function trackY(val, trackTop, lo, hi) {
-      return trackTop + trackH - ((val - lo) / (hi - lo)) * trackH;
+    function trackY(val, trackTop, th, lo, hi) {
+      return trackTop + th - ((val - lo) / (hi - lo)) * th;
     }
+
     const vLo = -0.15,
       vHi = 0.35;
     const iLo = 0,
-      iHi = 0.32;
+      iHi = 0.65; // Fixed upper bound so i_syn fits perfectly
 
-    const thY = trackY(v_thr, vTrackY, vLo, vHi);
-    const rstY = trackY(v_rst, vTrackY, vLo, vHi);
+    const thY = trackY(v_thr, vTrackY, trackH, vLo, vHi);
+    const rstY = trackY(v_rst, vTrackY, trackH, vLo, vHi);
 
-    // Static left labels for thresholds (cleanly aligned outside the graph)
     ctx.font = "600 10px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
     ctx.fillStyle = rgba(T.coral, 0.9);
@@ -330,23 +335,31 @@ let gT = 0; // global time in seconds
     ctx.fillStyle = T.muted;
     ctx.fillText("reset −0.1", LBL - 8, rstY + 4);
 
-    // ── Apply Clipping Mask so graph data NEVER touches the left labels ──
+    // Apply Clipping Mask so graph data NEVER touches the left labels
     ctx.save();
     ctx.beginPath();
     ctx.rect(LBL, 0, plotW, H);
     ctx.clip();
 
-    // ── Background / refractory shading ──
+    // ── Background & Cascade Markers ──
+    let cascadeX = -1;
     for (let px = 0; px < plotW; px++) {
       const d = data[(offset + px) % SIM];
+
       if (d.refrac) {
         ctx.fillStyle = rgba(T.coral, 0.06);
-        ctx.fillRect(LBL + px, vTrackY, 1, trackH + 2);
-        ctx.fillRect(LBL + px, iTrackY, 1, trackH + 2);
+        ctx.fillRect(LBL + px, vTrackY, 1, trackH);
+        ctx.fillRect(LBL + px, iTrackY, 1, trackH);
       }
-      if (d.cascade) {
+
+      // Highlight the sub-threshold cascade injection
+      if (d.ph === 15) {
         ctx.fillStyle = rgba(T.amber, 0.3);
-        ctx.fillRect(LBL + px, iTrackY, 2, trackH);
+        ctx.fillRect(LBL + px, iTrackY, 3, trackH);
+        // Grab x-coord to draw the label once per view
+        if (cascadeX === -1 && px > 20 && px < plotW - 120) {
+          cascadeX = LBL + px;
+        }
       }
     }
 
@@ -365,29 +378,29 @@ let gT = 0; // global time in seconds
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ── v_mem trace ──
+    // ── v_mem trace (Teal) ──
     ctx.beginPath();
     ctx.strokeStyle = T.teal;
     ctx.lineWidth = 2.2;
     for (let px = 0; px < plotW; px++) {
       const d = data[(offset + px) % SIM];
-      const y = trackY(d.v, vTrackY, vLo, vHi);
+      const y = trackY(d.v, vTrackY, trackH, vLo, vHi);
       px === 0 ? ctx.moveTo(LBL + px, y) : ctx.lineTo(LBL + px, y);
     }
     ctx.stroke();
 
-    // ── i_syn trace ──
+    // ── i_syn trace (Green) ──
     ctx.beginPath();
     ctx.strokeStyle = T.green;
     ctx.lineWidth = 1.8;
     for (let px = 0; px < plotW; px++) {
       const d = data[(offset + px) % SIM];
-      const y = trackY(d.isyn, iTrackY, iLo, iHi);
+      const y = trackY(d.isyn, iTrackY, trackH, iLo, iHi);
       px === 0 ? ctx.moveTo(LBL + px, y) : ctx.lineTo(LBL + px, y);
     }
     ctx.stroke();
 
-    // ── Spike raster ──
+    // ── Spike raster (Coral) ──
     for (let px = 0; px < plotW; px++) {
       const d = data[(offset + px) % SIM];
       if (d.spike) {
@@ -395,27 +408,26 @@ let gT = 0; // global time in seconds
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(LBL + px, spkTrackY + 4);
-        ctx.lineTo(LBL + px, spkTrackY + 26);
+        ctx.lineTo(LBL + px, spkTrackY + spkTrackH - 4);
         ctx.stroke();
-        // SPIKE label above membrane trace
-        ctx.fillStyle = rgba(T.coral, 0.9);
-        ctx.font = "bold 9px IBM Plex Mono, monospace";
-        ctx.textAlign = "center";
-        ctx.fillText("▲", LBL + px, thY - 10);
       }
     }
 
-    // ── Cascade annotation ──
-    ctx.fillStyle = rgba(T.amber, 0.65);
-    ctx.font = "600 10px IBM Plex Mono, monospace";
-    // Dynamic alignment so it doesn't break right edge
-    const cascX = LBL + plotW * 0.55;
-    ctx.textAlign = cascX > W - 100 ? "right" : "left";
-    ctx.fillText("↑ cascade inject", cascX, iTrackY + trackH + 2);
+    // ── Cascade Label ──
+    if (cascadeX !== -1) {
+      ctx.fillStyle = rgba(T.amber, 0.85);
+      ctx.font = "600 10px IBM Plex Mono, monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(
+        "↑ neighbor cascade inject",
+        cascadeX + 6,
+        iTrackY + trackH - 6,
+      );
+    }
 
     ctx.restore(); // end clip
 
-    // ── Track separators ──
+    // ── Left Axis Separator ──
     ctx.strokeStyle = rgba(T.border2, 0.35);
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -426,25 +438,36 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 3. CASCADE RING  –  inherently responsive radius logic
+// 3. CASCADE RING  –  Sequential Scatter-Gather (Traveling Particles)
 // ════════════════════════════════════════════════════════════════════════
 (function () {
-  const ch = new CH("casCanvas", 440);
+  const ch = new CH("casCanvas", 480);
   ch.enableMouse();
 
-  const N = 64;
-  const R = 3;
-  const mem = new Float32Array(N).fill(0);
-  const isyn = new Float32Array(N).fill(0);
-  const W_mat = Array.from({ length: N }, (_, i) =>
-    Array.from({ length: N }, (_, j) => {
-      const d = Math.min(Math.abs(i - j), N - Math.abs(i - j));
-      return d > 0 && d <= R ? (1 - d / (R + 1)) * 0.8 : 0;
+  const Nc = 64; // Clusters (Inner Ring)
+  const D = 512; // Neurons (Outer Ring)
+  const R_W = 3; // Neighbor radius
+
+  const v_mem = new Float32Array(D).fill(0);
+  const c_fire = new Float32Array(Nc).fill(0);
+  const c_recv = new Float32Array(Nc).fill(0);
+
+  // Precompute W matrix (learned neighbor weights)
+  const W_mat = Array.from({ length: Nc }, (_, i) =>
+    Array.from({ length: Nc }, (_, j) => {
+      const dist = Math.min(Math.abs(i - j), Nc - Math.abs(i - j));
+      return dist > 0 && dist <= R_W ? (1 - dist / (R_W + 1)) * 0.8 : 0;
     }),
   );
 
   let lastFireT = -1;
   let autoFireCooldown = 0;
+
+  // Ripple system to show sequential causality
+  const PHASE_IN = 0,
+    PHASE_LAT = 1,
+    PHASE_OUT = 2;
+  const ripples = [];
 
   anims.push((t) => {
     const ctx = ch.fill(T.panel);
@@ -452,143 +475,270 @@ let gT = 0; // global time in seconds
       H = ch.h;
     const cx = W / 2,
       cy = H / 2;
-    const ringR = Math.min(W, H) * 0.34;
-    const nodeR = Math.max(3, ringR * 0.04);
 
-    for (let i = 0; i < N; i++) {
-      isyn[i] *= 0.85;
-      mem[i] *= 0.8;
-      if (mem[i] < 0) mem[i] = 0;
+    const rIn = Math.min(W, H) * 0.16;
+    const rOut = Math.min(W, H) * 0.38;
+
+    // 1. Slow Decay
+    for (let i = 0; i < D; i++) v_mem[i] *= 0.96;
+    for (let c = 0; c < Nc; c++) {
+      c_fire[c] *= 0.92;
+      c_recv[c] *= 0.94;
     }
 
-    let hovered = -1;
-    for (let i = 0; i < N; i++) {
-      const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-      const nx = cx + Math.cos(a) * ringR;
-      const ny = cy + Math.sin(a) * ringR;
-      if (Math.hypot(ch.mx - nx, ch.my - ny) < nodeR + 6) {
-        hovered = i;
-        break;
+    // 2. Precompute Geometry
+    const n_pos = [];
+    const c_pos = [];
+
+    for (let c = 0; c < Nc; c++) {
+      const a_c = (c / Nc) * Math.PI * 2 - Math.PI / 2;
+      c_pos.push({
+        x: cx + Math.cos(a_c) * rIn,
+        y: cy + Math.sin(a_c) * rIn,
+        a: a_c,
+      });
+    }
+
+    let hovered_n = -1;
+    let minDist = 15;
+
+    for (let i = 0; i < D; i++) {
+      const c = i % Nc;
+      const k = Math.floor(i / Nc); // 0 to 7
+      const arc_step = (Math.PI * 2) / Nc / 9;
+      const a_n = c_pos[c].a + (k - 3.5) * arc_step;
+
+      const nx = cx + Math.cos(a_n) * rOut;
+      const ny = cy + Math.sin(a_n) * rOut;
+      n_pos.push({ nx, ny, c, a: a_n });
+
+      if (Math.hypot(ch.mx - nx, ch.my - ny) < minDist) {
+        minDist = Math.hypot(ch.mx - nx, ch.my - ny);
+        hovered_n = i;
       }
     }
 
-    if (hovered >= 0 && t - lastFireT > 0.08) {
+    // 3. Trigger Logic
+    function triggerSpike(idx) {
+      v_mem[idx] = 1.5;
+      // Phase 1: Spawn inward ripple (Scatter) - slowed down
+      ripples.push({
+        type: PHASE_IN,
+        from: idx,
+        to: idx % Nc,
+        prog: 0,
+        speed: 0.015,
+        weight: 1.0,
+      });
+    }
+
+    // Cooldowns increased to make it easier to observe
+    if (hovered_n >= 0 && t - lastFireT > 0.8) {
       lastFireT = t;
-      mem[hovered] = 1.5;
-      for (let j = 0; j < N; j++) isyn[j] += W_mat[hovered][j] * 0.8;
+      triggerSpike(hovered_n);
     }
 
-    autoFireCooldown -= 1;
-    if (autoFireCooldown <= 0) {
-      autoFireCooldown = 55 + Math.floor(Math.random() * 60);
-      const f = Math.floor(Math.random() * N);
-      mem[f] = 1.4;
-      for (let j = 0; j < N; j++) isyn[j] += W_mat[f][j] * 0.7;
+    autoFireCooldown--;
+    if (autoFireCooldown <= 0 && hovered_n === -1 && ripples.length === 0) {
+      autoFireCooldown = 200 + Math.random() * 150;
+      triggerSpike(Math.floor(Math.random() * D));
     }
 
-    for (let i = 0; i < N; i++) mem[i] = Math.min(mem[i] + isyn[i] * 0.2, 2.0);
+    // 4. Process Ripples (Traveling Signal)
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      let r = ripples[i];
+      r.prog += r.speed;
 
-    ctx.strokeStyle = rgba(T.border2, 0.35);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-    ctx.stroke();
+      if (r.prog >= 1.0) {
+        if (r.type === PHASE_IN) {
+          c_fire[r.to] = 1.0;
+          for (let j = 0; j < Nc; j++) {
+            if (W_mat[r.to][j] > 0) {
+              // Phase 2: Lateral transfer - slowed down
+              ripples.push({
+                type: PHASE_LAT,
+                from: r.to,
+                to: j,
+                prog: 0,
+                speed: 0.01,
+                weight: W_mat[r.to][j] * 1.5,
+              });
+            }
+          }
+        } else if (r.type === PHASE_LAT) {
+          c_recv[r.to] = Math.max(c_recv[r.to], r.weight);
+          for (let n = 0; n < D; n++) {
+            if (n % Nc === r.to) {
+              // Phase 3: Gather outward - slowed down
+              ripples.push({
+                type: PHASE_OUT,
+                from: r.to,
+                to: n,
+                prog: 0,
+                speed: 0.015,
+                weight: r.weight * 0.4,
+              });
+            }
+          }
+        } else if (r.type === PHASE_OUT) {
+          v_mem[r.to] = Math.min(v_mem[r.to] + r.weight, 0.95);
+        }
+        ripples.splice(i, 1);
+      }
+    }
 
-    for (let i = 0; i < N; i++) {
-      for (let off = 1; off <= 2; off++) {
-        const j = (i + off) % N;
-        const w = W_mat[i][j];
-        if (w < 0.01) continue;
-        const a1 = (i / N) * Math.PI * 2 - Math.PI / 2;
-        const a2 = (j / N) * Math.PI * 2 - Math.PI / 2;
-        const x1 = cx + Math.cos(a1) * ringR;
-        const y1 = cy + Math.sin(a1) * ringR;
-        const x2 = cx + Math.cos(a2) * ringR;
-        const y2 = cy + Math.sin(a2) * ringR;
-        const act = Math.max(mem[i], mem[j]);
-        const alpha = 0.06 + act * 0.18;
-        ctx.strokeStyle =
-          act > 0.3 ? rgba(T.teal, alpha) : rgba(T.border2, 0.08);
-        ctx.lineWidth = w * 1.5;
+    // ── DRAWING ──
+
+    // A. Draw Base Faint Web & Spokes
+    ctx.strokeStyle = rgba(T.border2, 0.05);
+    ctx.lineWidth = 0.5;
+    for (let c = 0; c < Nc; c++) {
+      for (let offset = 1; offset <= R_W; offset++) {
+        const j = (c + offset) % Nc;
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        ctx.moveTo(c_pos[c].x, c_pos[c].y);
+        ctx.lineTo(c_pos[j].x, c_pos[j].y);
         ctx.stroke();
       }
     }
-
-    for (let i = 0; i < N; i++) {
-      const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-      const nx = cx + Math.cos(a) * ringR;
-      const ny = cy + Math.sin(a) * ringR;
-      const m = mem[i];
-      const syn = isyn[i];
-
-      let nodeColor,
-        glowColor,
-        glowR = 0;
-      if (m > 1.0) {
-        nodeColor = T.coral;
-        glowColor = rgba(T.coral, 0.3);
-        glowR = nodeR + 8;
-      } else if (syn > 0.08 || m > 0.08) {
-        const frac = Math.min((m + syn) / 0.9, 1);
-        nodeColor = T.teal;
-        glowColor = rgba(T.teal, 0.15 + frac * 0.25);
-        glowR = nodeR + 3 + frac * 5;
-      } else {
-        nodeColor = T.code;
-        glowColor = null;
-      }
-
-      if (glowR > 0) {
-        const grd = ctx.createRadialGradient(
-          nx,
-          ny,
-          nodeR * 0.5,
-          nx,
-          ny,
-          glowR,
-        );
-        grd.addColorStop(0, glowColor);
-        grd.addColorStop(1, "transparent");
-        ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      const nodeSize = nodeR + m * 3;
-      ctx.fillStyle = nodeColor;
+    for (let i = 0; i < D; i++) {
       ctx.beginPath();
-      ctx.arc(nx, ny, nodeSize, 0, Math.PI * 2);
+      ctx.moveTo(n_pos[i].nx, n_pos[i].ny);
+      ctx.lineTo(c_pos[n_pos[i].c].x, c_pos[n_pos[i].c].y);
+      ctx.stroke();
+    }
+
+    // B. Draw Active Inner Clusters
+    for (let c = 0; c < Nc; c++) {
+      const isFire = c_fire[c] > 0.1;
+      const isRecv = c_recv[c] > 0.1;
+      const colorHex = isFire ? T.coral : isRecv ? T.teal : T.code;
+
+      ctx.fillStyle = colorHex;
+      ctx.beginPath();
+      ctx.arc(
+        c_pos[c].x,
+        c_pos[c].y,
+        isFire ? 4 : isRecv ? 3 : 2,
+        0,
+        Math.PI * 2,
+      );
       ctx.fill();
 
-      if (m > 0.15) {
-        ctx.fillStyle = rgba("#ffffff", Math.min(m, 0.8));
+      if (isFire || isRecv) {
+        const glowR = isFire ? 18 : 12;
+        const alpha = isFire ? c_fire[c] * 0.6 : c_recv[c] * 0.4;
+        const grd = ctx.createRadialGradient(
+          c_pos[c].x,
+          c_pos[c].y,
+          0,
+          c_pos[c].x,
+          c_pos[c].y,
+          glowR,
+        );
+        grd.addColorStop(0, rgba(colorHex, alpha));
+        // FIX: Fade to the SAME color with 0 alpha to prevent dark rings
+        grd.addColorStop(1, rgba(colorHex, 0));
+        ctx.fillStyle = grd;
         ctx.beginPath();
-        ctx.arc(nx, ny, Math.min(nodeSize * 0.4, 3), 0, Math.PI * 2);
+        ctx.arc(c_pos[c].x, c_pos[c].y, glowR, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
+    // C. Draw Outer Neurons
+    for (let i = 0; i < D; i++) {
+      const v = v_mem[i];
+      const isSpike = v >= 1.0;
+      const isSub = v > 0.05 && !isSpike;
+      const colorHex = isSpike ? T.coral : isSub ? T.teal : T.text;
+
+      ctx.fillStyle = isSpike || isSub ? colorHex : rgba(T.text, 0.15);
+      ctx.beginPath();
+      ctx.arc(n_pos[i].nx, n_pos[i].ny, isSpike ? 2.5 : 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (isSpike || isSub) {
+        const glowR = isSpike ? 14 : 6 + v * 6;
+        const alpha = isSpike ? 0.7 : v * 0.5;
+        const grd = ctx.createRadialGradient(
+          n_pos[i].nx,
+          n_pos[i].ny,
+          0,
+          n_pos[i].nx,
+          n_pos[i].ny,
+          glowR,
+        );
+        grd.addColorStop(0, rgba(colorHex, alpha));
+        // FIX: Fade to the SAME color with 0 alpha to prevent dark rings
+        grd.addColorStop(1, rgba(colorHex, 0));
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(n_pos[i].nx, n_pos[i].ny, glowR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // D. Draw Traveling Ripples
+    for (let r of ripples) {
+      let rx, ry, col;
+      if (r.type === PHASE_IN) {
+        rx = n_pos[r.from].nx + (c_pos[r.to].x - n_pos[r.from].nx) * r.prog;
+        ry = n_pos[r.from].ny + (c_pos[r.to].y - n_pos[r.from].ny) * r.prog;
+        col = T.coral;
+      } else if (r.type === PHASE_LAT) {
+        // FIX: Replaced const with let to prevent random crashes when crossing the wrap-around angle
+        let a1 = c_pos[r.from].a;
+        let a2 = c_pos[r.to].a;
+        if (a2 - a1 > Math.PI) a1 += Math.PI * 2;
+        if (a1 - a2 > Math.PI) a2 += Math.PI * 2;
+        const aCur = a1 + (a2 - a1) * r.prog;
+        rx = cx + Math.cos(aCur) * rIn;
+        ry = cy + Math.sin(aCur) * rIn;
+        col = T.amber;
+      } else if (r.type === PHASE_OUT) {
+        rx = c_pos[r.from].x + (n_pos[r.to].nx - c_pos[r.from].x) * r.prog;
+        ry = c_pos[r.from].y + (n_pos[r.to].ny - c_pos[r.from].y) * r.prog;
+        col = T.teal;
+      }
+
+      // Draw sharp center
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(rx, ry, 2.0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw soft gradient glow (no dark edges)
+      const grd = ctx.createRadialGradient(rx, ry, 0, rx, ry, 10);
+      grd.addColorStop(0, rgba(col, 0.6));
+      grd.addColorStop(1, rgba(col, 0));
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(rx, ry, 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // E. Labels
     ctx.fillStyle = T.muted;
     ctx.font = "bold 13px IBM Plex Mono, monospace";
     ctx.textAlign = "center";
-    ctx.fillText("64 Clusters", cx, cy - 12);
+    ctx.fillText("Scatter-Gather (512 Neurons → 64 Clusters)", cx, 24);
+
     ctx.font = "10px IBM Plex Mono, monospace";
     ctx.fillStyle = T.faint;
-    ctx.fillText("D = 512 neurons / 64 = 8 per cluster", cx, cy + 8);
-    ctx.fillText("radius = 3, gain = learnable", cx, cy + 24);
+    ctx.fillText(
+      "Phase 1: Scatter (Coral) | Phase 2: W_mat (Amber) | Phase 3: Gather (Teal)",
+      cx,
+      40,
+    );
 
-    const active = mem.filter((m) => m > 0.15).length;
+    const activeN = v_mem.filter((v) => v > 0.05).length;
     ctx.fillStyle = T.teal;
     ctx.font = "600 11px IBM Plex Mono, monospace";
-    // Safe Y height guarantees no collision with nodes
     ctx.fillText(
-      `active clusters: ${active} / 64  (${((active / 64) * 100).toFixed(0)}%)`,
+      `saved from death: ${activeN} / 512  (${((activeN / 512) * 100).toFixed(0)}%)`,
       cx,
-      Math.max(16, cy - ringR - 20),
+      H - 18,
     );
   });
 })();

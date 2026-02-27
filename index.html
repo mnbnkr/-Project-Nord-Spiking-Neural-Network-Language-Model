@@ -166,14 +166,15 @@ current_in = torch.<span class="c-f">cat</span>([fast, slow], dim=<span class="c
         <div class="vis-wrap">
           <canvas id="lifCanvas"></canvas>
           <div class="vis-caption">
-            Oscilloscope trace of a single LIF neuron receiving periodic current
-            bursts.
-            <strong>Green</strong> = filtered synaptic current i_syn.
-            <strong>Teal</strong> = membrane voltage v_mem. When v_mem crosses
-            the <strong>threshold 0.25</strong>, a
-            <strong>coral spike</strong> fires, v_mem soft-resets to ~0, and the
-            neuron enters the grey refractory block (v_mem clamped to −0.1) for
-            2 steps.
+            Oscilloscope trace of a single LIF neuron.
+            <strong>Bottom (Green)</strong> = filtered synaptic current
+            <code>i_syn</code>. <strong>Middle (Teal)</strong> = membrane
+            voltage <code>v_mem</code>. Notice the sub-threshold cascade
+            injection (amber): it raises <code>v_mem</code> slightly but doesn't
+            trigger a spike, keeping gradients alive. When the main burst pushes
+            <code>v_mem</code> over the <strong>threshold 0.25</strong>,
+            <strong>Top (Coral) spikes</strong> fire, and the neuron enters a
+            2-step refractory clamp at −0.1.
           </div>
         </div>
       </div>
@@ -236,12 +237,17 @@ neighbor_signal = neighbor_signal * cluster_gain   <span class="c-c"># (B, 64)</
           <div class="hint-tag">🖱 Hover to trigger spikes</div>
           <canvas id="casCanvas"></canvas>
           <div class="vis-caption">
-            <strong>Interactive:</strong> 64 neural clusters arranged in a
-            topological ring (as in the code). Node brightness = cluster
-            membrane potential. Move your mouse over clusters to trigger spikes
-            (coral). Watch the cascade propagate: activated clusters inject
-            sub-threshold current (teal glow) into neighbors proportional to
-            their learned weights, preventing gradient death.
+            <strong>Interactive:</strong> How does a 512-dimensional tensor use
+            a flat ring? Through <em>Scatter-Gather</em>. The
+            <strong>Outer Ring</strong> represents the 512 individual neurons in
+            a layer. The <strong>Inner Ring</strong> represents the 64
+            topological clusters. Hover to trigger an outer neuron (coral).
+            Watch it send its spike down to its cluster
+            (<code>scatter_add</code>). The cluster sends lateral ripples along
+            the inner ring (<code>W matrix</code>). Neighboring clusters receive
+            the ripple and push the signal back out to their constituent neurons
+            (<code>gather</code>), raising them into a teal sub-threshold ghost
+            state.
           </div>
         </div>
       </div>
