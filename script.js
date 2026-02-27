@@ -1,7 +1,7 @@
 "use strict";
 
 // ────────────────────────────────────────────────────────────────────────────
-// THEME  –  reads CSS variables dynamically, stays in sync with dark/light mode
+// THEME – reads CSS variables dynamically, stays in sync with dark/light mode
 // ────────────────────────────────────────────────────────────────────────────
 function readTheme() {
   const s = getComputedStyle(document.documentElement);
@@ -32,7 +32,7 @@ window
   });
 
 // ────────────────────────────────────────────────────────────────────────────
-// CANVAS HELPER  –  proper DPR, ResizeObserver, no-accumulate transforms
+// CANVAS HELPER – proper DPR, ResizeObserver, no-accumulate transforms
 // ────────────────────────────────────────────────────────────────────────────
 class CH {
   constructor(id, height) {
@@ -148,7 +148,7 @@ let gT = 0; // global time in seconds
       const x = startX + i * (colW + 8);
       const cx = x + colW / 2;
 
-      // Animated height  –  fast is volatile, slow is gentle
+      // Animated height – fast is volatile, slow is gentle
       let barH;
       if (isSlow) {
         barH = maxSlowH * (0.55 + 0.45 * Math.abs(Math.sin(t * 0.4 + i * 1.1)));
@@ -238,7 +238,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 2. LIF NEURON  –  bounded clipping, corrected i_syn bounds, spikes on top
+// 2. LIF NEURON – bounded clipping, corrected i_syn bounds, spikes on top
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("lifCanvas", 380);
@@ -438,7 +438,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 3. CASCADE RING  –  Sequential Scatter-Gather (Traveling Particles)
+// 3. CASCADE RING – Sequential Scatter-Gather (Traveling Particles)
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("casCanvas", 480);
@@ -744,7 +744,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 4. RESONANCE  –  fully responsive scaling and safe legend placement
+// 4. RESONANCE – fully responsive scaling and safe legend placement
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("resCanvas", 400);
@@ -937,7 +937,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 5. STDP  –  dynamically bounded trace width & safe text alignment
+// 5. STDP – dynamically bounded trace width & safe text alignment
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("stdpCanvas", 420);
@@ -1131,7 +1131,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 6. LEAKY CLAMP  –  fixed scale radius to mathematically prevent overlap
+// 6. LEAKY CLAMP – fixed scale radius to mathematically prevent overlap
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("lkyCanvas", 340);
@@ -1266,7 +1266,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 7. EMA TEMPORAL READOUT  –  fully responsive to prevent squeezed cells
+// 7. EMA TEMPORAL READOUT – fully responsive to prevent squeezed cells
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("emaCanvas", 380);
@@ -1399,7 +1399,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 8. FULL ARCHITECTURE STACK  –  layout perfectly adapts to container bounds
+// 8. FULL ARCHITECTURE STACK – layout perfectly adapts to container bounds
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("stackCanvas", 820);

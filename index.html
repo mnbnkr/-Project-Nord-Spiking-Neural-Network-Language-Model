@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Inside Project Nord  –  SNN Architecture Walkthrough</title>
+    <title>Inside Project Nord – SNN Architecture Walkthrough</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap"
@@ -20,7 +20,7 @@
         <h1>Inside the Spiking Engine</h1>
         <p style="font-size: 1.2rem; color: var(--text-main); max-width: 680px">
           Standard AI models perform dense, expensive matrix multiplications for
-          every single token. Biological brains don't  –  they use sparse,
+          every single token. Biological brains don't – they use sparse,
           <strong>1-bit binary spikes</strong>, firing only 2–3% of the time.
           This page traces one word through Nord's entire computational
           pipeline, step by step, with every animation mathematically faithful
@@ -28,7 +28,7 @@
         </p>
         <p style="max-width: 660px">
           <strong>Project Nord</strong> solves five problems that every prior
-          SNN language model either failed at or avoided entirely  –  all in one
+          SNN language model either failed at or avoided entirely – all in one
           novel, from-scratch architecture. No distillation, no teacher
           transformer. Let's trace the journey.
         </p>
@@ -43,7 +43,7 @@
         <p>
           When you type <em>"Hello"</em>, a standard transformer turns it into a
           single 512-dimensional float vector and stops there. A spiking network
-          can't process a frozen static frame  –  it requires a
+          can't process a frozen static frame – it requires a
           <strong>stream of input current flowing across time</strong>.
         </p>
         <p>
@@ -56,7 +56,7 @@
           <li>
             <strong class="hl-teal">T_fast (8 steps, scale = 15.0):</strong>
             High-amplitude, rapidly-varying drive. Each step uses a different
-            learned sigmoid gate over the 512 dims, making it volatile  –  ideal
+            learned sigmoid gate over the 512 dims, making it volatile – ideal
             for capturing local morpheme-level details.
           </li>
           <li>
@@ -80,11 +80,11 @@
 x = temporal_proj(embed(token_ids))     <span class="c-c"># (B×S, D=512)</span>
 
 <span class="c-c"># Fast path: T=8 steps, each with its own learned gate per dimension</span>
-fast_gates = torch.<span class="c-f">sigmoid</span>(fast_basis)   <span class="c-c"># (8, 512)  –  learned per-step gate</span>
+fast_gates = torch.<span class="c-f">sigmoid</span>(fast_basis)   <span class="c-c"># (8, 512) – learned per-step gate</span>
 fast = fast_gates * x * drive_scale      <span class="c-c"># drive_scale ≈ 15.0</span>
 
 <span class="c-c"># Slow path: T_slow=2 steps, weaker amplitude</span>
-slow_gates = torch.<span class="c-f">sigmoid</span>(slow_basis)   <span class="c-c"># (2, 512)  –  different learned gate</span>
+slow_gates = torch.<span class="c-f">sigmoid</span>(slow_basis)   <span class="c-c"># (2, 512) – different learned gate</span>
 slow = slow_gates * x * slow_scale       <span class="c-c"># slow_scale ≈ 5.0</span>
 
 <span class="c-c"># Concatenate → (10, B×S, 512) injected current tensor</span>
@@ -107,7 +107,7 @@ current_in = torch.<span class="c-f">cat</span>([fast, slow], dim=<span class="c
       <!-- ═══════════════════════════════════════════════ STEP 2: LIF ════ -->
       <div class="card">
         <div class="step-badge">Step 2 · Binary Conversion</div>
-        <h2>The AssociativeLIF Neuron  –  Integrate, Fire, Reset</h2>
+        <h2>The AssociativeLIF Neuron – Integrate, Fire, Reset</h2>
         <p>
           We now have 10 timesteps of continuous current. The
           <code>AssociativeLIF</code> (Leaky Integrate-and-Fire) block converts
@@ -137,8 +137,7 @@ current_in = torch.<span class="c-f">cat</span>([fast, slow], dim=<span class="c
             <div class="dot"></div>
             <div class="dot"></div>
             <span class="code-fname"
-              >nord_core.py · AssociativeLIF.forward()  –  per-timestep
-              loop</span
+              >nord_core.py · AssociativeLIF.forward() – per-timestep loop</span
             >
           </div>
           <div class="code-body">
@@ -182,7 +181,7 @@ current_in = torch.<span class="c-f">cat</span>([fast, slow], dim=<span class="c
       <!-- ═══════════════════════════════════════════════ STEP 3: CASCADE ════ -->
       <div class="card">
         <div class="step-badge">Step 3 · Preventing Death</div>
-        <h2>The Associative Cascade  –  Keeping Gradients Alive</h2>
+        <h2>The Associative Cascade – Keeping Gradients Alive</h2>
         <p>
           Here's the central paradox of deep spiking networks: efficiency
           demands silence, but silence kills learning. At 97% sparsity,
@@ -203,7 +202,7 @@ current_in = torch.<span class="c-f">cat</span>([fast, slow], dim=<span class="c
         <p>
           Crucially, the neighbor weights and per-cluster gains are
           <strong>learned during training</strong>
-           –  the network decides which cluster topologies are most useful.
+           – the network decides which cluster topologies are most useful.
         </p>
 
         <div class="code-window">
@@ -219,7 +218,7 @@ current_in = torch.<span class="c-f">cat</span>([fast, slow], dim=<span class="c
             <pre><code><span class="c-c"># Group D=512 neurons into nc=64 clusters</span>
 cluster_fire = scatter_add(spikes, cluster_ids) / (D // nc)  <span class="c-c"># (B, 64)</span>
 
-<span class="c-c"># Learned soft neighbor weight matrix  –  sigmoid keeps weights in (0,1)</span>
+<span class="c-c"># Learned soft neighbor weight matrix – sigmoid keeps weights in (0,1)</span>
 W = torch.<span class="c-f">sigmoid</span>(neighbor_weights)             <span class="c-c"># (64, 64)</span>
 
 <span class="c-c"># Each cluster receives weighted sum of neighbors' spike rates</span>
@@ -267,7 +266,7 @@ neighbor_signal = neighbor_signal * cluster_gain   <span class="c-c"># (B, 64)</
           neurons, producing <strong>binary spike patterns</strong> across T=10
           timesteps. The "resonance score" between position <em>i</em> (query)
           and position <em>j</em> (key) is then the dot product of their spike
-          patterns  –  how many times did they fire simultaneously across the 10
+          patterns – how many times did they fire simultaneously across the 10
           temporal frames?
         </p>
         <p>
@@ -287,7 +286,7 @@ neighbor_signal = neighbor_signal * cluster_gain   <span class="c-c"># (B, 64)</
             >
           </div>
           <div class="code-body">
-            <pre><code><span class="c-c"># Project to Q, K, V  –  then spike Q and K independently</span>
+            <pre><code><span class="c-c"># Project to Q, K, V – then spike Q and K independently</span>
 q_spikes, _ = lif_q(W_q(x))  <span class="c-c"># (T=10, B×S, D) binary spikes</span>
 k_spikes, _ = lif_k(W_k(x))  <span class="c-c"># (T=10, B×S, D) binary spikes</span>
 
@@ -310,7 +309,7 @@ attn = softmax(sparse_res)</code></pre>
           <canvas id="resCanvas"></canvas>
           <div class="vis-caption">
             Left: binary Q-spike patterns (teal = fired). Top: binary K-spike
-            patterns. Center: resonance heatmap  –  brighter = more co-firing
+            patterns. Center: resonance heatmap – brighter = more co-firing
             (stronger connection). The scanner (coral row) processes one query
             position at a time and applies <strong>Top-K masking</strong>: only
             the top-3 strongest connections per row survive (highlighted). The
@@ -323,7 +322,7 @@ attn = softmax(sparse_res)</code></pre>
       <!-- ═══════════════════════════════════════════════ STEP 5: STDP ════ -->
       <div class="card">
         <div class="step-badge">Step 5 · Online Learning</div>
-        <h2>Reward-Modulated STDP  –  Learning During Inference</h2>
+        <h2>Reward-Modulated STDP – Learning During Inference</h2>
         <p>
           Nord can <strong>update its own weights during inference</strong>,
           even on a phone CPU, using
@@ -334,7 +333,7 @@ attn = softmax(sparse_res)</code></pre>
         </p>
         <p>
           Standard STDP is blind to whether the network is actually improving
-           –  it could strengthen weights that produce wrong predictions. Nord
+           – it could strengthen weights that produce wrong predictions. Nord
           fixes this with a
           <strong>Reward Signal</strong>: the final weight update is multiplied
           by <code>2 × sigmoid(loss_EMA − current_loss) − 1</code>, which maps
@@ -377,7 +376,7 @@ layer.weight += dW_final.clamp(w_min, w_max)</code></pre>
             launch decaying eligibility traces (top).
             <strong>Post-neuron spikes</strong> (teal) launch their own traces
             (second). The <strong>ΔW line</strong> integrates the outer products
-             –  green = LTP, red = LTD. The final
+             – green = LTP, red = LTD. The final
             <strong>Reward bar</strong> (bottom) shows sigmoid(loss_EMA − loss):
             when loss drops (green sector), ΔW is applied at full strength; when
             loss rises (red), the update flips sign.
@@ -388,7 +387,7 @@ layer.weight += dW_final.clamp(w_min, w_max)</code></pre>
       <!-- ═══════════════════════════════════════════════ STEP 6: LEAKYCLAMP ════ -->
       <div class="card">
         <div class="step-badge">Step 6 · Protecting State</div>
-        <h2>LeakyClamp  –  Keeping the Sub-Threshold Ghost Alive</h2>
+        <h2>LeakyClamp – Keeping the Sub-Threshold Ghost Alive</h2>
         <p>
           In virtually every modern neural network, <strong>ReLU</strong> is the
           non-linearity: for any positive input, pass it through; for any
@@ -397,16 +396,16 @@ layer.weight += dW_final.clamp(w_min, w_max)</code></pre>
         </p>
         <p>
           A LIF neuron's natural resting voltage is
-          <code>v_reset = -0.1</code>  –  intrinsically negative. ReLU
-          annihilates this: the entire sub-threshold state, which carries rich
-          information about how close a neuron is to firing, becomes identically
-          zero. Gradients cannot flow through zero; neurons can never recover
-          from silence.
+          <code>v_reset = -0.1</code> – intrinsically negative. ReLU annihilates
+          this: the entire sub-threshold state, which carries rich information
+          about how close a neuron is to firing, becomes identically zero.
+          Gradients cannot flow through zero; neurons can never recover from
+          silence.
         </p>
         <p>
           Nord introduces <strong>LeakyClamp</strong>. For positive values it's
           identity; for negative values it applies a
-          <strong>learned per-channel leak slope</strong> (≈0.1)  –  gently
+          <strong>learned per-channel leak slope</strong> (≈0.1) – gently
           compressing negative signals down to a
           <strong>learnable floor</strong>
           (initialized at −0.1). The sub-threshold ghost is preserved.
@@ -449,7 +448,7 @@ neg_part = (self.leak * x).<span class="c-f">clamp</span>(min=self.floor)  <span
       <!-- ═══════════════════════════════════════════════ STEP 7: EMA ════ -->
       <div class="card">
         <div class="step-badge">Step 7 · The Final Bottleneck</div>
-        <h2>EMA Temporal Readout  –  From Spikes to Floats</h2>
+        <h2>EMA Temporal Readout – From Spikes to Floats</h2>
         <p>
           After 6 deep layers, the network holds 10 timesteps of scattered 1-bit
           binary spikes. How do you accurately predict which of 128,000 English
@@ -462,7 +461,7 @@ neg_part = (self.leak * x).<span class="c-f">clamp</span>(min=self.floor)  <span
           <strong>continuous 16-bit membrane potential</strong> tensor
           <code>v_membrane (10 × S × 512)</code>. Rather than doing a simple
           mean over timesteps (which discards temporal ordering), Nord applies
-          an <strong>Exponential Moving Average</strong>  –  giving the most
+          an <strong>Exponential Moving Average</strong> – giving the most
           recent timestep the highest weight. The learnable decay
           <code>α ≈ 0.8</code> means the contribution of timestep
           <em>t</em> scales as <code>(1−α)·α^(9−t)</code>.
@@ -479,7 +478,7 @@ neg_part = (self.leak * x).<span class="c-f">clamp</span>(min=self.floor)  <span
             <div class="dot"></div>
             <div class="dot"></div>
             <span class="code-fname"
-              >nord_core.py · NordModel.forward()  –  EMA readout</span
+              >nord_core.py · NordModel.forward() – EMA readout</span
             >
           </div>
           <div class="code-body">
@@ -508,8 +507,8 @@ logits  = lm_head(layernorm(readout))  <span class="c-c"># (B, S, 128256)</span>
             weight (shown to the left of each row) grows exponentially:
             <strong>T9 contributes 7× more</strong>
             than T0. The bottom row shows the final collapsed 1-D output vector
-             –  still continuous floats, not 1-bit spikes  –  fed directly into
-            the 128k-vocab language head.
+             – still continuous floats, not 1-bit spikes – fed directly into the
+            128k-vocab language head.
           </div>
         </div>
       </div>
@@ -522,7 +521,7 @@ logits  = lm_head(layernorm(readout))  <span class="c-c"># (B, S, 128256)</span>
           Everything assembled: one token enters at the top as an integer index.
           It exits at the bottom as a probability distribution over 128,256
           possible next words. Every stage has a dedicated visualization above
-           –  this final view shows them all connected, with flowing particles
+           – this final view shows them all connected, with flowing particles
           representing the data tensor as it transforms through Nord's
           architecture.
         </p>
@@ -551,8 +550,8 @@ logits  = lm_head(layernorm(readout))  <span class="c-c"># (B, S, 128256)</span>
     <footer>
       <div class="container">
         <p>
-          Pure Canvas 2D  –  every animation is a direct simulation of the
-          running source code.
+          Pure Canvas 2D – every animation is a direct simulation of the running
+          source code.
         </p>
         <p class="mono" style="margin-top: 10px">
           Project Nord · 144M SNN · 97% Sparsity · $10 Training Cost · Built
