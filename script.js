@@ -291,7 +291,7 @@ let gT = 0; // global time in seconds
       H = ch.h;
     const PAD = 14,
       LBL = 80; // Extended label width so threshold tags stay cleanly outside
-    const offset = Math.floor(t * 55) % SIM; // scroll speed
+    const offset = Math.floor(t * 32) % SIM; // scroll speed
 
     // Three horizontal tracks
     const trackH = (H - PAD * 2 - 20) / 3;
@@ -833,7 +833,7 @@ let gT = 0; // global time in seconds
     const W = ch.w,
       H = ch.h;
 
-    const offset = Math.floor(t * 50) % LEN;
+    const offset = Math.floor(t * 28) % LEN;
     const PAD = 14,
       LBL = 90; // Widened so text labels never cut off on the left
     const rightPad = 85; // Fixed width guarantees no wasted space while fitting legend safely
@@ -1254,115 +1254,112 @@ let gT = 0; // global time in seconds
 (function () {
   const ch = new CH("stackCanvas", 820);
 
+  // Flipped Top-to-Bottom order with accurate proportions
   const LAYERS = [
     {
-      label: "LM Head",
-      sub: "Linear → logits [128k]",
-      type: "head",
-      color: () => T.amber,
-    },
-    {
-      label: "LayerNorm",
-      sub: "normalize",
-      type: "norm",
-      color: () => T.faint,
-    },
-    {
-      label: "EMA Readout",
-      sub: "α=0.8 · collapse T→1",
-      type: "ema",
-      color: () => T.teal,
-    },
-    {
-      label: "Readout LIF",
-      sub: "extracts v_membrane",
-      type: "lif",
-      color: () => T.purple,
-    },
-    {
-      label: "NordBlock ×6",
-      sub: "Resonance → FFN → Clamp",
-      type: "block",
-      color: () => T.blue,
-    },
-    {
-      label: "Input LIF",
-      sub: "continuous → spikes",
-      type: "lif",
-      color: () => T.purple,
-    },
-    {
-      label: "T_slow ×2",
-      sub: "scale=5.0  (anchor)",
-      type: "slow",
-      color: () => T.amber,
-    },
-    {
-      label: "T_fast ×8",
-      sub: "scale=15.0 (volatile)",
-      type: "fast",
-      color: () => T.teal,
-    },
-    {
-      label: "Temporal Proj.",
-      sub: "nn.Linear(D,D)",
-      type: "proj",
-      color: () => T.muted,
-    },
-    {
-      label: "Embedding",
-      sub: "vocab 128k → d=512",
-      type: "embed",
-      color: () => T.green,
-    },
-    {
+      id: "token",
       label: "Token",
       sub: '"Hello" → index 9426',
-      type: "token",
       color: () => T.coral,
+      hRatio: 0.07,
+    },
+    {
+      id: "embed",
+      label: "Embedding",
+      sub: "vocab 128k → d=512",
+      color: () => T.green,
+      hRatio: 0.07,
+    },
+    {
+      id: "temporal",
+      label: "Temporal Proj.",
+      sub: "T_fast ×8 + T_slow ×2",
+      color: () => T.amber,
+      hRatio: 0.1,
+    },
+    {
+      id: "input_lif",
+      label: "Input LIF",
+      sub: "continuous → spikes",
+      color: () => T.purple,
+      hRatio: 0.1,
+    },
+    {
+      id: "blocks",
+      label: "NordBlock ×6",
+      sub: "97% sparse spikes",
+      color: () => T.blue,
+      hRatio: 0.36,
+    },
+    {
+      id: "readout_lif",
+      label: "Readout LIF",
+      sub: "extracts v_membrane",
+      color: () => T.purple,
+      hRatio: 0.1,
+    },
+    {
+      id: "ema",
+      label: "EMA Readout",
+      sub: "collapse T→1",
+      color: () => T.teal,
+      hRatio: 0.07,
+    },
+    {
+      id: "norm",
+      label: "LayerNorm",
+      sub: "normalize",
+      color: () => T.faint,
+      hRatio: 0.05,
+    },
+    {
+      id: "head",
+      label: "LM Head",
+      sub: "Linear → logits [128k]",
+      color: () => T.amber,
+      hRatio: 0.08,
     },
   ];
 
-  const particles = Array.from({ length: 80 }, (_, i) => {
-    const isSlow = i % 12 === 0;
-    return {
-      lane: Math.random(),
-      z: Math.random(),
-      speed: isSlow ? 0.12 : 0.3 + Math.random() * 0.5,
-      color: isSlow ? "amber" : Math.random() < 0.6 ? "teal" : "blue",
-      size: isSlow ? 3 : 2,
-    };
-  });
+  // 300 data points tracing through the network
+  const particles = Array.from({ length: 300 }, (_, i) => ({
+    id: i,
+    z: Math.random(),
+    speed: 0.08 + Math.random() * 0.06,
+    lane: i % 10, // represents the 10 timesteps
+    x: 0,
+    currentAlpha: 0,
+    currentSize: 0,
+    color: T.teal,
+  }));
+
+  // Initial random scatter prevents visual clumping on frame 1
+  particles.forEach((p) => (p.x = 200 + Math.random() * 100));
 
   anims.push((t) => {
-    // Fill with standard panel background, not code
     const ctx = ch.fill(T.panel);
     const W = ch.w,
       H = ch.h;
 
     const PAD = 20;
-    const LBL = Math.max(90, Math.min(220, W * 0.35)); // Dynamic label width
+    const LBL = Math.max(90, Math.min(220, W * 0.35));
     const pipeLeft = PAD + LBL + 10;
     const pipeW = W - pipeLeft - PAD * 2;
-    const nLayers = LAYERS.length;
     const totalH = H - PAD * 2;
-    const layerH = totalH / nLayers;
 
-    for (const p of particles) {
-      p.z += 0.016 * p.speed * 0.06;
-      if (p.z > 1.0) p.z = 0;
-    }
+    // 1. Draw Static Layer Boundaries
+    let curY = PAD;
+    for (let li = 0; li < LAYERS.length; li++) {
+      const layer = LAYERS[li];
+      const layerH = totalH * layer.hRatio;
+      const yTop = curY;
+      const yMid = yTop + layerH / 2;
+      const col = layer.color();
+      const isBlock = layer.id === "blocks";
 
-    for (let li = 0; li < nLayers; li++) {
-      const layer = LAYERS[li],
-        yTop = PAD + li * layerH,
-        yMid = yTop + layerH / 2,
-        col = layer.color(),
-        isBlock = layer.type === "block";
-
-      ctx.fillStyle = rgba(col, isBlock ? 0.12 : 0.08); // optimized opacity for generic theme
+      ctx.fillStyle = rgba(col, isBlock ? 0.06 : 0.03);
       ctx.fillRect(pipeLeft, yTop + 1, pipeW, layerH - 2);
-      ctx.fillStyle = rgba(col, 0.35);
+      ctx.fillStyle = rgba(col, 0.25);
       ctx.fillRect(pipeLeft, yTop, pipeW, 2);
 
       ctx.textAlign = "right";
@@ -1384,62 +1381,185 @@ let gT = 0; // global time in seconds
 
       if (isBlock) {
         const subColors = [T.blue, T.blue, T.teal, T.green, T.teal, T.blue];
-        for (let s = 0; s < 6; s++) {
+        for (let s = 1; s < 6; s++) {
           const subY = yTop + (s / 6) * layerH;
-          ctx.fillStyle = rgba(subColors[s], 0.12);
-          ctx.fillRect(pipeLeft + 2, subY + 1, pipeW - 4, layerH / 6 - 2);
-          ctx.fillStyle = rgba(subColors[s], 0.3);
+          ctx.fillStyle = rgba(subColors[s], 0.15);
           ctx.fillRect(pipeLeft + 2, subY, pipeW - 4, 1);
         }
       }
 
-      if (layer.type === "lif" && pipeW > 80) {
-        ctx.fillStyle = rgba(T.coral, 0.6);
-        ctx.font = "600 10px IBM Plex Mono, monospace";
-        ctx.textAlign = "right";
-        ctx.fillText("97% sparse", pipeLeft + pipeW - 6, yMid + 3);
-      }
+      curY += layerH;
     }
 
+    // 2. Animate Data Tensor Representation
     for (const p of particles) {
-      const px = pipeLeft + 4 + p.lane * (pipeW - 8),
-        py = PAD + (1.0 - p.z) * totalH; // Flows Bottom to Top (Input to Output)
-      const col =
-        p.color === "amber" ? T.amber : p.color === "teal" ? T.teal : T.blue;
-      const grd = ctx.createRadialGradient(px, py, 0, px, py, p.size * 3);
-      grd.addColorStop(0, rgba(col, 0.5));
-      grd.addColorStop(1, "transparent");
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(px, py, p.size * 3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = col;
-      ctx.beginPath();
-      ctx.arc(px, py, p.size, 0, Math.PI * 2);
-      ctx.fill();
+      p.z += p.speed * 0.012; // Flows top to bottom
+      if (p.z > 1.0) {
+        p.z -= 1.0;
+        p.x = pipeLeft + pipeW / 2 + (Math.random() - 0.5) * 15;
+        p.currentAlpha = 0;
+      }
+      const y = PAD + p.z * totalH;
+
+      // Identify which layer this particle is currently in
+      let curLayer = LAYERS[0];
+      let layerTop = PAD;
+      for (let l of LAYERS) {
+        if (y >= layerTop && y <= layerTop + totalH * l.hRatio) {
+          curLayer = l;
+          break;
+        }
+        layerTop += totalH * l.hRatio;
+      }
+
+      let progress = (y - layerTop) / (totalH * curLayer.hRatio);
+      let targetX = p.x;
+      let targetAlpha = 0;
+      let targetSize = 2;
+      let targetColor = curLayer.color();
+
+      const laneSpacing = pipeW / 10;
+      const laneX = pipeLeft + p.lane * laneSpacing + laneSpacing / 2;
+      const centerSpread =
+        pipeLeft + pipeW * 0.1 + ((p.id % 20) / 20) * (pipeW * 0.8);
+
+      // Define visual behavior based on the current architectural stage
+      switch (curLayer.id) {
+        case "token": // [1] Dense pulse
+          targetX = pipeLeft + pipeW / 2 + (Math.random() - 0.5) * 15;
+          targetAlpha = 0.9;
+          targetSize = 2.5;
+          break;
+        case "embed": // [512] Dense expansion
+          targetX = centerSpread;
+          targetAlpha = 0.6;
+          targetSize = 2.2;
+          break;
+        case "temporal": //[10 x 512] Split into Fast + Slow lanes
+          targetX = laneX + (Math.random() - 0.5) * (laneSpacing * 0.4);
+          targetAlpha = 0.7;
+          targetColor = p.lane < 8 ? T.teal : T.amber;
+          break;
+        case "input_lif": // Binary Conversion -> Sparsity starts fading in
+          targetX = laneX;
+          targetAlpha = 0.7 * (1 - progress); // fades to 0
+          targetColor = p.lane < 8 ? T.teal : T.amber;
+          if (progress > 0.6) {
+            let isSpike =
+              Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) >
+              1.85;
+            if (isSpike) {
+              targetAlpha = 1;
+              targetSize = 3;
+              targetColor = T.coral;
+            } else {
+              targetAlpha = 0.04;
+              targetSize = 1;
+            }
+          }
+          break;
+        case "blocks": //[10 x 512] 97% Sparse Spikes
+          targetX = laneX + Math.sin(y * 0.1 + p.id) * 2; // subtle wiggle
+          let isSpike =
+            Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) >
+            1.85; // highly selective firing
+          if (isSpike) {
+            targetAlpha = 1;
+            targetSize = 3.5;
+            targetColor = T.coral;
+          } else {
+            targetAlpha = 0.03; // Dead neurons barely visible
+            targetSize = 1;
+            targetColor = p.lane < 8 ? T.teal : T.amber;
+          }
+          break;
+        case "readout_lif": // Accumulating continuous membrane potentials
+          targetX = laneX;
+          targetAlpha = 0.2 + 0.6 * Math.abs(Math.sin(p.id * 12 + t * 2));
+          targetSize = 2.5;
+          targetColor = T.purple;
+          break;
+        case "ema": // [512] Collapse 10 temporal lanes back to 1
+          targetX = centerSpread;
+          targetAlpha = 0.7;
+          targetSize = 2;
+          targetColor = T.teal;
+          break;
+        case "norm": // [512] Normalization
+          targetX = centerSpread;
+          targetAlpha = 0.5;
+          targetSize = 2;
+          break;
+        case "head": // [128k] Massive expansion to logits vocab
+          let expansion = 1 + progress * 2.5;
+          let center = pipeLeft + pipeW / 2;
+          targetX = center + (centerSpread - center) * expansion;
+          targetAlpha = 0.8 * (1 - progress); // fades out to the void
+          targetSize = 2 + progress * 2;
+          break;
+      }
+
+      // Smooth interpolations for elegant transitions between layer logic
+      p.x += (targetX - p.x) * 0.15;
+      p.currentAlpha += (targetAlpha - p.currentAlpha) * 0.2;
+      p.currentSize += (targetSize - p.currentSize) * 0.2;
+      p.color = targetColor;
+
+      // Draw active particles
+      if (p.currentAlpha > 0.01) {
+        const px = p.x;
+        const py = y;
+        const col = p.color;
+
+        // Apply distinct glowing pulse to firing spikes
+        if (p.currentAlpha > 0.8) {
+          const grd = ctx.createRadialGradient(
+            px,
+            py,
+            0,
+            px,
+            py,
+            p.currentSize * 2.5,
+          );
+          grd.addColorStop(0, rgba(col, p.currentAlpha * 0.5));
+          grd.addColorStop(1, "transparent");
+          ctx.fillStyle = grd;
+          ctx.beginPath();
+          ctx.arc(px, py, p.currentSize * 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = rgba(col, p.currentAlpha);
+        ctx.beginPath();
+        ctx.arc(px, py, p.currentSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     ctx.strokeStyle = rgba(T.border2, 0.3);
     ctx.lineWidth = 1;
     ctx.strokeRect(pipeLeft, PAD, pipeW, totalH);
 
+    // 3. Render updated Legend
     const legY = H - 18;
     ctx.font = "600 10px IBM Plex Mono, monospace";
     ctx.textAlign = "left";
     if (W < 500) {
       ctx.fillStyle = T.teal;
-      ctx.fillText("● fast", PAD, legY - 14);
+      ctx.fillText("● Fast", PAD, legY - 14);
       ctx.fillStyle = T.amber;
-      ctx.fillText("● slow", PAD + 60, legY - 14);
-      ctx.fillStyle = T.blue;
-      ctx.fillText("● deep features", PAD, legY);
+      ctx.fillText("● Slow", PAD + 60, legY - 14);
+      ctx.fillStyle = T.coral;
+      ctx.fillText("● Spike", PAD, legY);
     } else {
       ctx.fillStyle = T.teal;
-      ctx.fillText("● T_fast activations", PAD, legY);
+      ctx.fillText("● T_fast", PAD, legY);
       ctx.fillStyle = T.amber;
-      ctx.fillText("● T_slow activations", PAD + 160, legY);
-      ctx.fillStyle = T.blue;
-      ctx.fillText("● deep block features", PAD + 320, legY);
+      ctx.fillText("● T_slow", PAD + 80, legY);
+      ctx.fillStyle = T.coral;
+      ctx.fillText("● Sparse Spikes", PAD + 160, legY);
+      ctx.fillStyle = T.faint;
+      ctx.fillText("● Dense Continuous", PAD + 290, legY);
     }
   });
 })();

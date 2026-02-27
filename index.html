@@ -293,7 +293,7 @@ resonance = q_flat @ k_flat.transpose(<span class="c-n">-2</span>, <span class="
 <span class="c-c"># Causal mask (no peeking at future tokens)</span>
 resonance.masked_fill_(future_mask, float(<span class="c-s">"-inf"</span>))
 
-<span class="c-c"># ═══ FIX #5: Top-K Sparsity ═══ keep only top-64 per query row</span>
+<span class="c-c"># Top-K Sparsity: keep only top-64 per query row</span>
 sparse_res = full(-inf)
 sparse_res.scatter_(-<span class="c-n">1</span>, top_k_indices, top_k_values)  <span class="c-c"># zero-mask the rest</span>
 attn = softmax(sparse_res)</code></pre>
@@ -473,14 +473,14 @@ neg_part = (self.leak * x).<span class="c-f">clamp</span>(min=self.floor)  <span
             <div class="dot"></div>
             <div class="dot"></div>
             <span class="code-fname"
-              >nord_core.py · NordModel.forward()  –  EMA readout (FIX #6)</span
+              >nord_core.py · NordModel.forward()  –  EMA readout</span
             >
           </div>
           <div class="code-body">
             <pre><code><span class="c-c"># Readout LIF: spikes AND membrane potential are returned</span>
 readout_spikes, v_membrane = readout_lif(x_flat)  <span class="c-c"># (T=10, B×S, D=512)</span>
 
-<span class="c-c"># ═══ FIX #6: EMA Temporal Smoothing ═══</span>
+<span class="c-c"># EMA Temporal Smoothing Readout</span>
 alpha = sigmoid(readout_ema_raw)   <span class="c-c"># learnable α ≈ 0.80</span>
 ema = zeros(B*S, D)
 <span class="c-k">for</span> t <span class="c-k">in</span> <span class="c-f">range</span>(T_total):         <span class="c-c"># t=0..9</span>
@@ -513,8 +513,8 @@ logits  = lm_head(layernorm(readout))  <span class="c-c"># (B, S, 128256)</span>
         <div class="step-badge">Global Map</div>
         <h2>The Complete Forward Pass</h2>
         <p>
-          Everything assembled: one token enters at the bottom as an integer
-          index. It exits at the top as a probability distribution over 128,256
+          Everything assembled: one token enters at the top as an integer index.
+          It exits at the bottom as a probability distribution over 128,256
           possible next words. Every stage has a dedicated visualization above
            –  this final view shows them all connected, with flowing particles
           representing the data tensor as it transforms through Nord's
@@ -531,11 +531,12 @@ logits  = lm_head(layernorm(readout))  <span class="c-c"># (B, S, 128256)</span>
         <div class="vis-wrap">
           <canvas id="stackCanvas"></canvas>
           <div class="vis-caption">
-            Vertical pipeline. Teal particles = fast-path activations (T_fast).
-            Amber = slow-path. Particles narrow at LIF stages (binary spikes,
-            97% dead). At EMA readout they reconverge into a single dense
-            stream. Watch 6× NordBlock layers: each one adds the Resonance
-            residual then the FFN residual, both gated by LeakyClamp.
+            Top-to-Bottom vertical pipeline. Watch the dense token embedding
+            expand into 10 temporal lanes (teal = fast, amber = slow). At the
+            LIF stages, the continuous data becomes
+            <strong>97% sparse</strong> across the 6 SNN blocks (only firing
+            sporadic coral spikes). Finally, it reconverges via EMA, and expands
+            into the 128k-vocab distribution at the bottom.
           </div>
         </div>
       </div>
