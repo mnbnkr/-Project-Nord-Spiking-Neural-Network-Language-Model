@@ -116,7 +116,7 @@ let gT = 0; // global time in seconds
     // ── Embedding bar at bottom ──
     const embY = H - 72,
       embH = 36,
-      embPad = Math.max(20, (W - 350) / 2); // dynamic horizontal pad
+      embPad = Math.max(20, (W - 350) / 2);
     const grad = ctx.createLinearGradient(embPad, 0, W - embPad, 0);
     grad.addColorStop(0, rgba(T.teal, 0.18));
     grad.addColorStop(0.35, rgba(T.blue, 0.2));
@@ -135,20 +135,24 @@ let gT = 0; // global time in seconds
 
     // ── 10 temporal current columns ──
     const nCols = 10;
-    // Dynamic column width to fit smaller screens
-    const colW = Math.max(12, Math.min(26, (W - 80) / nCols - 8));
-    const totalW = nCols * colW + (nCols - 1) * 8;
+    const colW = Math.max(12, Math.min(26, (W - 100) / nCols - 8));
+    const gap = 8;
+    const splitGap = 32; // Visual separation between fast and slow
+    const totalW = nCols * colW + 8 * gap + splitGap;
     const startX = (W - totalW) / 2;
-    const barBase = embY - 14;
-    const maxFastH = barBase - 50; // fast bars can reach up to here
-    const maxSlowH = maxFastH * 0.33;
+
+    const barBase = embY - 26;
+    const maxFastH = barBase - 85;
+    const maxSlowH = maxFastH * 0.33; // Exactly 5/15 ratio
 
     for (let i = 0; i < 10; i++) {
       const isSlow = i >= 8;
-      const x = startX + i * (colW + 8);
+
+      // Calculate isolated horizontal position with dynamic gap
+      let x = startX + i * colW + i * gap;
+      if (isSlow) x += splitGap - gap;
       const cx = x + colW / 2;
 
-      // Animated height – fast is volatile, slow is gentle
       let barH;
       if (isSlow) {
         barH = maxSlowH * (0.55 + 0.45 * Math.abs(Math.sin(t * 0.4 + i * 1.1)));
@@ -160,7 +164,6 @@ let gT = 0; // global time in seconds
       const col = isSlow ? T.amber : T.teal;
       const barY = barBase - barH;
 
-      // Connector line from embedding to bar
       ctx.strokeStyle = rgba(col, 0.22);
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 4]);
@@ -170,22 +173,19 @@ let gT = 0; // global time in seconds
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Bar body
       const grd = ctx.createLinearGradient(x, barY, x, barBase);
       grd.addColorStop(0, rgba(col, 0.9));
       grd.addColorStop(1, rgba(col, 0.35));
       ctx.fillStyle = grd;
       ctx.fillRect(x, barY, colW, barH);
 
-      // Bar top glow
       ctx.fillStyle = rgba(col, 0.95);
       ctx.fillRect(x, barY, colW, 3);
 
-      // Timestep label
       ctx.fillStyle = T.muted;
       ctx.font = "600 10px IBM Plex Mono, monospace";
       ctx.textAlign = "center";
-      ctx.fillText(`T${i + 1}`, cx, barBase + 12);
+      ctx.fillText(`T${i + 1}`, cx, barBase + 16);
     }
 
     // ── Legend ──
@@ -213,27 +213,35 @@ let gT = 0; // global time in seconds
       );
     }
 
-    // ── Amplitude bracket (fast) ──
-    const fastRight = startX + 7 * (colW + 8) + colW + 6;
-    ctx.strokeStyle = rgba(T.text, 0.18);
+    // ── Left Axis (Fast Amplitude scale=15.0) ──
+    const axisX = startX - 14;
+    ctx.strokeStyle = rgba(T.text, 0.25);
     ctx.lineWidth = 1;
-    ctx.setLineDash([2, 3]);
     ctx.beginPath();
-    ctx.moveTo(fastRight + 4, 70);
-    ctx.lineTo(fastRight + 4, barBase);
+    ctx.moveTo(axisX + 4, barBase - maxFastH);
+    ctx.lineTo(axisX, barBase - maxFastH);
+    ctx.lineTo(axisX, barBase);
+    ctx.lineTo(axisX + 4, barBase);
     ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = rgba(T.text, 0.4);
-    ctx.font = "10px IBM Plex Mono, monospace";
 
-    // Prevent overlap on right edge
-    if (fastRight + 40 > W) {
-      ctx.textAlign = "right";
-      ctx.fillText("max~15", fastRight, (70 + barBase) / 2 + 4);
-    } else {
-      ctx.textAlign = "left";
-      ctx.fillText("max~15", fastRight + 7, (70 + barBase) / 2 + 4);
-    }
+    ctx.fillStyle = rgba(T.text, 0.6);
+    ctx.font = "10px IBM Plex Mono, monospace";
+    ctx.textAlign = "right";
+    ctx.fillText("15.0", axisX - 4, barBase - maxFastH + 4);
+    ctx.fillText("0.0", axisX - 4, barBase + 4);
+
+    // ── Right Axis (Slow Amplitude scale=5.0) ──
+    const slowRight =
+      startX + 9 * colW + 9 * gap + (splitGap - gap) + colW + 14;
+    ctx.beginPath();
+    ctx.moveTo(slowRight - 4, barBase - maxSlowH);
+    ctx.lineTo(slowRight, barBase - maxSlowH);
+    ctx.lineTo(slowRight, barBase);
+    ctx.lineTo(slowRight - 4, barBase);
+    ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.fillText("5.0", slowRight + 4, barBase - maxSlowH + 4);
   });
 })();
 
@@ -453,10 +461,16 @@ let gT = 0; // global time in seconds
   const c_recv = new Float32Array(Nc).fill(0);
 
   // Precompute W matrix (learned neighbor weights)
+  // Replicates python: init_weights = zeros, dist=0 is 0 -> sigmoid(0)=0.5
   const W_mat = Array.from({ length: Nc }, (_, i) =>
     Array.from({ length: Nc }, (_, j) => {
       const dist = Math.min(Math.abs(i - j), Nc - Math.abs(i - j));
-      return dist > 0 && dist <= R_W ? (1 - dist / (R_W + 1)) * 0.8 : 0;
+      if (dist === 0) return 0.5; // Self-excitation (sigmoid of zero)
+      if (dist <= R_W) {
+        const init_val = 1.0 - dist / (R_W + 1);
+        return 1 / (1 + Math.exp(-init_val)); // Sigmoid approximation
+      }
+      return 0; // Assuming outside radius is strictly 0 for visualization
     }),
   );
 
@@ -521,26 +535,26 @@ let gT = 0; // global time in seconds
     // 3. Trigger Logic
     function triggerSpike(idx) {
       v_mem[idx] = 1.5;
-      // Phase 1: Spawn inward ripple (Scatter) - slowed down
+      // Phase 1: Spawn inward ripple (Scatter) - sped up for better flow
       ripples.push({
         type: PHASE_IN,
         from: idx,
         to: idx % Nc,
         prog: 0,
-        speed: 0.015,
+        speed: 0.035,
         weight: 1.0,
       });
     }
 
-    // Cooldowns increased to make it easier to observe
-    if (hovered_n >= 0 && t - lastFireT > 0.8) {
+    // Cooldowns adjusted to keep animation active
+    if (hovered_n >= 0 && t - lastFireT > 0.4) {
       lastFireT = t;
       triggerSpike(hovered_n);
     }
 
     autoFireCooldown--;
     if (autoFireCooldown <= 0 && hovered_n === -1 && ripples.length === 0) {
-      autoFireCooldown = 200 + Math.random() * 150;
+      autoFireCooldown = 60 + Math.random() * 60;
       triggerSpike(Math.floor(Math.random() * D));
     }
 
@@ -554,13 +568,13 @@ let gT = 0; // global time in seconds
           c_fire[r.to] = 1.0;
           for (let j = 0; j < Nc; j++) {
             if (W_mat[r.to][j] > 0) {
-              // Phase 2: Lateral transfer - slowed down
+              // Phase 2: Lateral transfer
               ripples.push({
                 type: PHASE_LAT,
                 from: r.to,
                 to: j,
                 prog: 0,
-                speed: 0.01,
+                speed: 0.025,
                 weight: W_mat[r.to][j] * 1.5,
               });
             }
@@ -569,13 +583,13 @@ let gT = 0; // global time in seconds
           c_recv[r.to] = Math.max(c_recv[r.to], r.weight);
           for (let n = 0; n < D; n++) {
             if (n % Nc === r.to) {
-              // Phase 3: Gather outward - slowed down
+              // Phase 3: Gather outward
               ripples.push({
                 type: PHASE_OUT,
                 from: r.to,
                 to: n,
                 prog: 0,
-                speed: 0.015,
+                speed: 0.035,
                 weight: r.weight * 0.4,
               });
             }
@@ -682,16 +696,21 @@ let gT = 0; // global time in seconds
     // D. Draw Traveling Ripples
     for (let r of ripples) {
       let rx, ry, col;
+      let isPulse = false;
+
       if (r.type === PHASE_IN) {
         rx = n_pos[r.from].nx + (c_pos[r.to].x - n_pos[r.from].nx) * r.prog;
         ry = n_pos[r.from].ny + (c_pos[r.to].y - n_pos[r.from].ny) * r.prog;
         col = T.coral;
       } else if (r.type === PHASE_LAT) {
-        // FIX: Replaced const with let to prevent random crashes when crossing the wrap-around angle
         let a1 = c_pos[r.from].a;
         let a2 = c_pos[r.to].a;
-        if (a2 - a1 > Math.PI) a1 += Math.PI * 2;
-        if (a1 - a2 > Math.PI) a2 += Math.PI * 2;
+        if (r.from !== r.to) {
+          if (a2 - a1 > Math.PI) a1 += Math.PI * 2;
+          if (a1 - a2 > Math.PI) a2 += Math.PI * 2;
+        } else {
+          isPulse = true; // Visual self-excitation pulse
+        }
         const aCur = a1 + (a2 - a1) * r.prog;
         rx = cx + Math.cos(aCur) * rIn;
         ry = cy + Math.sin(aCur) * rIn;
@@ -702,20 +721,27 @@ let gT = 0; // global time in seconds
         col = T.teal;
       }
 
-      // Draw sharp center
       ctx.fillStyle = col;
       ctx.beginPath();
-      ctx.arc(rx, ry, 2.0, 0, Math.PI * 2);
-      ctx.fill();
 
-      // Draw soft gradient glow (no dark edges)
-      const grd = ctx.createRadialGradient(rx, ry, 0, rx, ry, 10);
-      grd.addColorStop(0, rgba(col, 0.6));
-      grd.addColorStop(1, rgba(col, 0));
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(rx, ry, 10, 0, Math.PI * 2);
-      ctx.fill();
+      if (isPulse) {
+        // Draw an outward-expanding ring for self-excitation
+        const pulseR = 2.0 + Math.sin(r.prog * Math.PI) * 5;
+        ctx.arc(rx, ry, pulseR, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Draw standard traveling dot + glow
+        ctx.arc(rx, ry, 2.0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const grd = ctx.createRadialGradient(rx, ry, 0, rx, ry, 10);
+        grd.addColorStop(0, rgba(col, 0.6));
+        grd.addColorStop(1, rgba(col, 0));
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(rx, ry, 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     // E. Labels
@@ -747,46 +773,74 @@ let gT = 0; // global time in seconds
 // 4. RESONANCE – fully responsive scaling and safe legend placement
 // ════════════════════════════════════════════════════════════════════════
 (function () {
-  const ch = new CH("resCanvas", 400);
+  const ch = new CH("resCanvas", 440); // Height adapted for clean margins
 
   const SEQ = 10,
     T_total = 10,
     TOP_K = 3;
   const qPat = Array.from({ length: SEQ }, () =>
-    Array.from({ length: T_total }, () => (Math.random() < 0.35 ? 1 : 0)),
+    Array.from({ length: T_total }, () => 0),
   );
   const kPat = Array.from({ length: SEQ }, () =>
-    Array.from({ length: T_total }, () => (Math.random() < 0.35 ? 1 : 0)),
+    Array.from({ length: T_total }, () => 0),
   );
-  const res = Array.from({ length: SEQ }, (_, i) =>
-    Array.from({ length: SEQ }, (_, j) => {
-      if (j > i) return null;
-      return qPat[i].reduce((acc, q, t) => acc + q * kPat[j][t], 0);
-    }),
+  const res = Array.from({ length: SEQ }, () =>
+    Array.from({ length: SEQ }, () => null),
   );
-  const topK = Array.from({ length: SEQ }, (_, i) => {
-    const row = res[i].map((v, j) => ({ v, j })).filter((x) => x.v !== null);
-    row.sort((a, b) => b.v - a.v);
-    return new Set(row.slice(0, TOP_K).map((x) => x.j));
-  });
+  const topK = Array.from({ length: SEQ }, () => new Set());
+
+  let lastCycle = -1;
 
   anims.push((t) => {
     const ctx = ch.fill(T.panel);
     const W = ch.w,
       H = ch.h;
 
-    // Dynamically scale based on W
     const isSmall = W < 500;
     const scale = isSmall ? Math.max(0.6, W / 500) : 1.0;
 
-    const SPIKE_W = 14 * scale;
-    const SPIKE_H = 14 * scale;
+    const SPIKE_W = 10 * scale;
+    const SPIKE_H = 8 * scale;
     const HEAT_CELL = 28 * scale;
-    const marginLeft = isSmall ? 35 : 80;
-    const marginTop = 44;
-    const heatLeft = marginLeft + T_total * SPIKE_W + (isSmall ? 10 : 20);
+    const marginLeft = isSmall ? 35 : 70;
+
+    // Guaranteed non-overlapping vertical layout
+    const marginTop = isSmall ? 100 : 130;
     const heatTop = marginTop;
+    const heatLeft = marginLeft + T_total * SPIKE_W + (isSmall ? 10 : 20);
+
+    // K-spikes grow upwards from a safe baseline above the S0..S9 text
+    const kSpikeBottom = heatTop - 18;
+    const kSpikeTop = kSpikeBottom - T_total * SPIKE_H;
+
+    const cycle = Math.floor((t * 0.8) / SEQ);
     const scanRow = Math.floor(t * 0.8) % SEQ;
+
+    // Regenerate data dynamically every full sweep cycle
+    if (cycle !== lastCycle) {
+      lastCycle = cycle;
+      for (let i = 0; i < SEQ; i++) {
+        for (let tt = 0; tt < T_total; tt++) {
+          qPat[i][tt] = Math.random() < 0.35 ? 1 : 0;
+          kPat[i][tt] = Math.random() < 0.35 ? 1 : 0;
+        }
+      }
+      for (let i = 0; i < SEQ; i++) {
+        for (let j = 0; j < SEQ; j++) {
+          if (j > i) res[i][j] = null;
+          else
+            res[i][j] = qPat[i].reduce(
+              (acc, q, tt) => acc + q * kPat[j][tt],
+              0,
+            );
+        }
+        const row = res[i]
+          .map((v, j) => ({ v, j }))
+          .filter((x) => x.v !== null);
+        row.sort((a, b) => b.v - a.v);
+        topK[i] = new Set(row.slice(0, TOP_K).map((x) => x.j));
+      }
+    }
 
     // ── Q spike patterns ──
     ctx.fillStyle = T.muted;
@@ -831,26 +885,28 @@ let gT = 0; // global time in seconds
     ctx.fillText(
       "K spikes (past tokens)",
       heatLeft + (SEQ * HEAT_CELL) / 2,
-      marginTop - 22,
+      kSpikeTop - 8,
     );
 
     for (let j = 0; j < SEQ; j++) {
       const x = heatLeft + j * HEAT_CELL;
       for (let tt = 0; tt < T_total; tt++) {
         if (kPat[j][tt]) {
-          ctx.fillStyle = rgba(T.amber, 0.55);
+          ctx.fillStyle = rgba(T.amber, 0.65);
+          // Draw safely downwards towards the baseline
           ctx.fillRect(
-            x + 2,
-            marginTop - T_total * SPIKE_H - 4 + tt * SPIKE_H,
-            HEAT_CELL - 4,
+            x + 3,
+            kSpikeTop + tt * SPIKE_H + 1,
+            HEAT_CELL - 6,
             SPIKE_H - 1,
           );
         }
       }
+      // Label text placed safely below the spikes, above the heatmap
       ctx.fillStyle = T.faint;
       ctx.font = "10px IBM Plex Mono, monospace";
       ctx.textAlign = "center";
-      ctx.fillText(`S${j}`, x + HEAT_CELL / 2, marginTop - 3);
+      ctx.fillText(`S${j}`, x + HEAT_CELL / 2, heatTop - 6);
     }
 
     // ── Resonance heatmap ──
@@ -898,7 +954,7 @@ let gT = 0; // global time in seconds
     ctx.lineWidth = 2;
     ctx.strokeRect(heatLeft, scanY, SEQ * HEAT_CELL, HEAT_CELL);
 
-    // ── Axis labels & Legend dynamically placed ──
+    // ── Axis labels & Legend ──
     let lx, ly;
     if (isSmall) {
       lx = marginLeft;
@@ -960,14 +1016,16 @@ let gT = 0; // global time in seconds
   let tp = 0,
     tm = 0,
     w = 0;
+  let maxdW = 0.0001;
   for (let i = 0; i < LEN; i++) {
     tp = tp * decay_p + pre[i];
     tm = tm * decay_m + post[i];
     trPre[i] = tp;
     trPost[i] = tm;
-    if (post[i]) w += a_plus * tp;
-    if (pre[i]) w -= a_minus * tm;
+    if (post[i]) w += a_plus * tp; // LTP jump
+    if (pre[i]) w -= a_minus * tm; // LTD jump
     dW[i] = w;
+    if (Math.abs(w) > maxdW) maxdW = Math.abs(w);
   }
 
   const reward = new Float32Array(LEN);
@@ -985,8 +1043,8 @@ let gT = 0; // global time in seconds
 
     const offset = Math.floor(t * 28) % LEN;
     const PAD = 14,
-      LBL = 90; // Widened so text labels never cut off on the left
-    const rightPad = 85; // Fixed width guarantees no wasted space while fitting legend safely
+      LBL = 90,
+      rightPad = 85;
     const plotW = W - LBL - rightPad;
     const nTracks = 4;
     const trackH = (H - PAD * 2 - 24) / nTracks;
@@ -997,8 +1055,8 @@ let gT = 0; // global time in seconds
       PAD + (trackH + 6) * 2,
       PAD + (trackH + 6) * 3,
     ];
-    const labels = ["pre  spikes", "pre  trace", "post trace", "reward × ΔW"];
-    const colors = [T.coral, rgba(T.coral, 0.7), rgba(T.teal, 0.8), T.green];
+    const labels = ["spikes", "pre  trace", "post trace", "reward × ΔW"];
+    const colors = [T.text, rgba(T.coral, 0.7), rgba(T.teal, 0.8), T.text];
 
     ctx.font = "600 10px IBM Plex Mono, monospace";
     for (let tr = 0; tr < nTracks; tr++) {
@@ -1015,23 +1073,31 @@ let gT = 0; // global time in seconds
     ctx.rect(LBL, 0, plotW, H);
     ctx.clip();
 
-    // Track 0
+    // Track 0: Spikes (separated cleanly into top and bottom half)
     for (let px = 0; px < plotW; px++) {
       if (data_sample(pre, offset, px, LEN) > 0.5) {
         ctx.fillStyle = T.coral;
-        ctx.fillRect(LBL + px, trackTops[0] + 4, 2, trackH - 8);
+        ctx.fillRect(LBL + px, trackTops[0] + 4, 2, trackH * 0.4);
       }
       if (data_sample(post, offset, px, LEN) > 0.5) {
         ctx.fillStyle = T.teal;
-        ctx.fillRect(LBL + px, trackTops[0] + trackH * 0.55, 2, trackH * 0.38);
+        ctx.fillRect(
+          LBL + px,
+          trackTops[0] + trackH * 0.5 + 4,
+          2,
+          trackH * 0.4,
+        );
       }
     }
-    ctx.fillStyle = T.teal;
+    // Mini labels inside the track
+    ctx.fillStyle = T.coral;
     ctx.font = "9px IBM Plex Mono, monospace";
     ctx.textAlign = "left";
-    ctx.fillText("post ▲", LBL + 4, trackTops[0] + trackH - 3);
+    ctx.fillText("pre ▼", LBL + 4, trackTops[0] + trackH * 0.35);
+    ctx.fillStyle = T.teal;
+    ctx.fillText("post ▲", LBL + 4, trackTops[0] + trackH - 4);
 
-    // Traces
+    // Traces (Tracks 1 & 2)
     draw_trace(
       ctx,
       trPre,
@@ -1061,22 +1127,59 @@ let gT = 0; // global time in seconds
       1.5,
     );
 
-    // Bar chart
-    const maxdW = Math.max(...dW) + 0.001;
+    // Track 3: reward phase strip + dW step-line graph
+    const cy_t = trackTops[3] + trackH / 2;
+
+    // Draw reward phase strip at the bottom
+    const rewY = trackTops[3] + trackH - 6;
     for (let px = 0; px < plotW; px++) {
-      const w_val = data_sample(dW, offset, px, LEN),
-        r_val = data_sample(reward, offset, px, LEN);
-      const norm = (w_val * (2 * r_val - 1)) / maxdW;
-      const barH = Math.abs(norm) * (trackH * 0.5);
-      const cy_t = trackTops[3] + trackH / 2;
-      ctx.fillStyle = norm > 0 ? rgba(T.green, 0.75) : rgba(T.coral, 0.55);
-      ctx.fillRect(LBL + px, cy_t - barH, 1, barH * 2);
+      const i = (offset + px) % LEN;
+      const r = reward[i];
+      ctx.fillStyle = r > 0.5 ? rgba(T.green, 0.2) : rgba(T.coral, 0.15);
+      ctx.fillRect(LBL + px, rewY, 1, 6);
     }
+
+    // Zero line
     ctx.strokeStyle = rgba(T.border2, 0.5);
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(LBL, trackTops[3] + trackH / 2);
-    ctx.lineTo(LBL + plotW, trackTops[3] + trackH / 2);
+    ctx.moveTo(LBL, cy_t);
+    ctx.lineTo(LBL + plotW, cy_t);
+    ctx.stroke();
+
+    // Gradient that colors line Green above center, Coral below center
+    const grad = ctx.createLinearGradient(
+      0,
+      trackTops[3],
+      0,
+      trackTops[3] + trackH,
+    );
+    grad.addColorStop(0, T.green);
+    grad.addColorStop(0.48, T.green);
+    grad.addColorStop(0.52, T.coral);
+    grad.addColorStop(1, T.coral);
+
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+
+    let prev_i = -1;
+    for (let px = 0; px < plotW; px++) {
+      const i = (offset + px) % LEN;
+      const final_w = dW[i] * (2 * reward[i] - 1); // Reward flips direction
+      const y = cy_t - (final_w / maxdW) * (trackH * 0.35);
+
+      if (px === 0 || i < prev_i) {
+        if (px > 0) {
+          ctx.stroke(); // Draw prior segment before wrap
+          ctx.beginPath();
+        }
+        ctx.moveTo(LBL + px, y);
+      } else {
+        ctx.lineTo(LBL + px, y);
+      }
+      prev_i = i;
+    }
     ctx.stroke();
 
     ctx.restore(); // end clip
@@ -1142,7 +1245,6 @@ let gT = 0; // global time in seconds
       H = ch.h;
 
     const PAD = 48;
-    // Ensure scale absolutely prevents plots colliding
     const scale = Math.min((H - PAD * 2) * 0.45, W / 7.5);
     const cxL = PAD + (W / 2 - PAD) * 0.5;
     const cxR = W / 2 + (W / 2 - PAD) * 0.5;
@@ -1163,7 +1265,10 @@ let gT = 0; // global time in seconds
       ctx.font = "10px IBM Plex Mono, monospace";
       ctx.textAlign = "center";
       ctx.fillText("0", cx + 5, baseY + 13);
-      ctx.fillText("x", cx + scale * 1.2, baseY + 13);
+      // Added numerical axis markers for immediate clarity
+      ctx.fillText("−1", cx - scale, baseY + 13);
+      ctx.fillText("+1", cx + scale, baseY + 13);
+      ctx.fillText("x", cx + scale * 1.3, baseY + 13);
       ctx.textAlign = "right";
       ctx.fillText("f(x)", cx - 4, baseY - scale * 1.1 + 10);
     }
@@ -1277,27 +1382,27 @@ let gT = 0; // global time in seconds
     { length: T_total },
     (_, t) => (1 - alpha) * Math.pow(alpha, T_total - 1 - t),
   );
-  const vMem = Array.from({ length: T_total }, (_, t) =>
-    Array.from(
-      { length: DIMS },
-      (_, d) => 0.15 * Math.sin(t * 0.7 + d * 0.5) + 0.05,
-    ),
-  );
-  const emaOut = new Array(DIMS).fill(0);
-  for (let t = 0; t < T_total; t++) {
-    for (let d = 0; d < DIMS; d++) {
-      emaOut[d] = alpha * emaOut[d] + (1 - alpha) * vMem[t][d];
-    }
-  }
+
+  const vMem = Array.from({ length: T_total }, () => new Float32Array(DIMS));
+  const emaOut = new Float32Array(DIMS);
 
   anims.push((t) => {
     const ctx = ch.fill(T.panel);
     const W = ch.w,
       H = ch.h;
 
+    for (let tt = 0; tt < T_total; tt++) {
+      for (let d = 0; d < DIMS; d++) {
+        vMem[tt][d] =
+          0.15 * Math.sin(tt * 0.7 + d * 0.5 + t * 1.8) +
+          0.1 * Math.sin(d * 1.1 - t * 0.8) +
+          0.05;
+      }
+    }
+
     const PAD = 20;
     const isSmall = W < 500;
-    const LBL_W = 45; // reduced label margin
+    const LBL_W = 45;
     const rightMargin = isSmall ? PAD : 140;
     const cellW = Math.max(
       8,
@@ -1306,7 +1411,17 @@ let gT = 0; // global time in seconds
     const cellH = 22,
       gridTop = PAD + 16,
       gridLeft = PAD + LBL_W;
-    const scanT = Math.floor(t * 0.9) % T_total;
+    const outY = gridTop + T_total * (cellH + 3) + 14;
+
+    const scanT = Math.floor(t * 2.0) % T_total; // Moving temporal scanner
+
+    // Recalculate EMA output dynamically UP TO scanT to visualize accumulation
+    emaOut.fill(0);
+    for (let tt = 0; tt <= scanT; tt++) {
+      for (let d = 0; d < DIMS; d++) {
+        emaOut[d] = alpha * emaOut[d] + (1 - alpha) * vMem[tt][d];
+      }
+    }
 
     ctx.fillStyle = T.faint;
     ctx.font = "9px IBM Plex Mono, monospace";
@@ -1332,34 +1447,44 @@ let gT = 0; // global time in seconds
       ctx.fillText(weights[tt].toFixed(3), gridLeft - 2, rowY + cellH / 2 + 4);
 
       for (let d = 0; d < DIMS; d++) {
-        const v = vMem[tt][d] + (isScan ? 0.02 * Math.sin(t * 3 + d) : 0);
-        const norm = (v + 0.2) / 0.5;
+        const v = vMem[tt][d];
+        const norm = Math.max(0, Math.min(1, (v + 0.2) / 0.5));
+
+        // Rows below scanT have been processed and are slightly dimmed out
+        const isProcessed = tt < scanT;
         const cellBg = isScan
-          ? rgba(T.coral, 0.1 + norm * 0.35)
-          : rgba(T.teal, 0.05 + norm * 0.25 * (0.3 + (tt / T_total) * 0.5));
+          ? rgba(T.coral, 0.15 + norm * 0.45)
+          : isProcessed
+            ? rgba(T.teal, 0.05 + norm * 0.15) // Dimmer history
+            : rgba(T.teal, 0.05 + norm * 0.35 * (0.3 + (tt / T_total) * 0.7)); // Future steps
+
         ctx.fillStyle = cellBg;
         ctx.fillRect(gridLeft + d * cellW, rowY, cellW - 1, cellH);
       }
+
+      // Draw falling dashed lines from the currently scanned row
+      if (isScan) {
+        ctx.strokeStyle = rgba(T.coral, 0.4);
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 4]);
+        for (let d = 0; d < DIMS; d++) {
+          ctx.beginPath();
+          ctx.moveTo(gridLeft + d * cellW + cellW / 2, rowY + cellH);
+          ctx.lineTo(gridLeft + d * cellW + cellW / 2, outY);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+      }
     }
 
-    const outY = gridTop + T_total * (cellH + 3) + 14;
     ctx.fillStyle = T.teal;
     ctx.font = "bold 11px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
     ctx.fillText("EMA out", gridLeft - 2, outY + cellH / 2 + 4);
 
-    ctx.strokeStyle = rgba(T.teal, 0.4);
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 3]);
-    ctx.beginPath();
-    ctx.moveTo(gridLeft + (DIMS * cellW) / 2, gridTop + T_total * (cellH + 3));
-    ctx.lineTo(gridLeft + (DIMS * cellW) / 2, outY);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const maxEma = Math.max(...emaOut.map(Math.abs)) + 0.001;
     for (let d = 0; d < DIMS; d++) {
-      const norm = (emaOut[d] + 0.1) / 0.35;
+      // The EMA effectively builds up dynamically, so the bottom row starts pale and brightens visibly!
+      const norm = Math.max(0, Math.min(1, (emaOut[d] + 0.1) / 0.35));
       ctx.fillStyle = rgba(T.teal, 0.3 + norm * 0.6);
       ctx.fillRect(gridLeft + d * cellW, outY, cellW - 1, cellH);
       ctx.strokeStyle = rgba(T.teal, 0.5);
@@ -1367,7 +1492,7 @@ let gT = 0; // global time in seconds
       ctx.strokeRect(gridLeft + d * cellW, outY, cellW - 1, cellH);
     }
 
-    // ── Safe Legend Placement ──
+    // ── Safe & Spaced Legend Placement ──
     ctx.fillStyle = T.muted;
     ctx.font = "600 10px IBM Plex Mono, monospace";
     ctx.textAlign = "left";
@@ -1381,18 +1506,18 @@ let gT = 0; // global time in seconds
         legY + 18,
       );
     } else {
-      const legX = gridLeft + DIMS * cellW + 14;
+      const legX = gridLeft + DIMS * cellW + 20; // Increased left padding
       ctx.fillText("EMA weight:", legX, gridTop + 14);
       ctx.fillStyle = T.faint;
-      ctx.fillText(`α = ${alpha}`, legX, gridTop + 30);
-      ctx.fillText(`w(t) = (1−α)·α^(9−t)`, legX, gridTop + 46);
-      ctx.fillText(`T0 → ${weights[0].toFixed(3)}`, legX, gridTop + 68);
-      ctx.fillText(`T9 → ${weights[9].toFixed(3)}`, legX, gridTop + 84);
+      ctx.fillText(`α = ${alpha}`, legX, gridTop + 34);
+      ctx.fillText(`w(t) = (1−α)·α^(9−t)`, legX, gridTop + 54);
+      ctx.fillText(`T0 → ${weights[0].toFixed(3)}`, legX, gridTop + 80);
+      ctx.fillText(`T9 → ${weights[9].toFixed(3)}`, legX, gridTop + 100);
       ctx.fillStyle = T.teal;
       ctx.fillText(
         `T9 is ${(weights[9] / weights[0]).toFixed(0)}× T0`,
         legX,
-        gridTop + 100,
+        gridTop + 120, // Increased vertical spacing
       );
     }
   });

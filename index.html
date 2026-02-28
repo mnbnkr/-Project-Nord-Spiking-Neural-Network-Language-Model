@@ -203,6 +203,13 @@ current_in = torch.<span class="c-f">cat</span>([fast, slow], dim=<span class="c
           Crucially, the neighbor weights and per-cluster gains are
           <strong>learned during training</strong>
            – the network decides which cluster topologies are most useful.
+          <em
+            >(Notice that the cascade also reverberates back into the
+            originating cluster! While the neuron that just fired is protected
+            by a hard refractory period, its silent neighbors in the same
+            cluster receive the sub-threshold ripple, priming them for
+            subsequent timesteps.)</em
+          >
         </p>
 
         <div class="code-window">
@@ -310,11 +317,12 @@ attn = softmax(sparse_res)</code></pre>
           <div class="vis-caption">
             Left: binary Q-spike patterns (teal = fired). Top: binary K-spike
             patterns. Center: resonance heatmap – brighter = more co-firing
-            (stronger connection). The scanner (coral row) processes one query
-            position at a time and applies <strong>Top-K masking</strong>: only
-            the top-3 strongest connections per row survive (highlighted). The
-            rest are killed to −∞ before softmax, saving 87%+ of memory vs. full
-            attention.
+            (stronger connection). The patterns dynamically regenerate to
+            simulate continuous processing. The scanner (coral row) processes
+            one query position at a time and applies
+            <strong>Top-K masking</strong>: only the top-3 strongest connections
+            per row survive (highlighted). The rest are killed to −∞ before
+            softmax, saving 87%+ of memory vs. full attention.
           </div>
         </div>
       </div>
@@ -373,13 +381,13 @@ layer.weight += dW_final.clamp(w_min, w_max)</code></pre>
           <canvas id="stdpCanvas"></canvas>
           <div class="vis-caption">
             Four synchronized traces. <strong>Pre-neuron spikes</strong> (coral)
-            launch decaying eligibility traces (top).
+            launch decaying eligibility traces (Track 2).
             <strong>Post-neuron spikes</strong> (teal) launch their own traces
-            (second). The <strong>ΔW line</strong> integrates the outer products
-             – green = LTP, red = LTD. The final
-            <strong>Reward bar</strong> (bottom) shows sigmoid(loss_EMA − loss):
-            when loss drops (green sector), ΔW is applied at full strength; when
-            loss rises (red), the update flips sign.
+            (Track 3). The <strong>bottom track</strong> maps the final
+            reward-modulated ΔW updates: green bars indicate synaptic
+            strengthening (LTP), while red bars indicate weakening (LTD). When
+            the loss rises, the reward signal flips the update sign, tying local
+            plasticity directly to global learning.
           </div>
         </div>
       </div>
@@ -434,13 +442,15 @@ neg_part = (self.leak * x).<span class="c-f">clamp</span>(min=self.floor)  <span
         <div class="vis-wrap">
           <canvas id="lkyCanvas"></canvas>
           <div class="vis-caption">
-            The signal (animated dot) sweeps from −1.2 to +1.2.
-            <strong>ReLU</strong> (grey dashed) kills everything below zero.
-            <strong>LeakyClamp</strong> (teal) preserves negatives with a gentle
-            slope (≈0.1×), flooring at the learnable minimum (coral dashed line,
-            −0.1). The ghost of sub-threshold state survives, keeping gradients
-            alive across all 60 non-differentiable spike barriers (6 layers × 10
-            timesteps).
+            The input signal (animated dot) represents normalized data sweeping
+            from negative to positive.
+            <strong>ReLU</strong> (coral line) kills everything below zero,
+            permanently destroying the sub-threshold state.
+            <strong>LeakyClamp</strong> (teal line) preserves negatives with a
+            gentle slope (≈0.1×), flooring at the learnable minimum (amber
+            dashed line, −0.1). The ghost of sub-threshold state survives,
+            keeping gradients alive across all 60 non-differentiable spike
+            barriers.
           </div>
         </div>
       </div>
