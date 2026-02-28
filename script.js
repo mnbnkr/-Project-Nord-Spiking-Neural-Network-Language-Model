@@ -315,23 +315,25 @@ let gT = 0; // global time in seconds
     ctx.font = "600 11px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
 
+    // Pushed labels further left (-12 instead of -8) to avoid intersecting graph lines
     ctx.fillStyle = T.coral;
-    ctx.fillText("spikes", LBL - 8, spkTrackY + spkTrackH / 2 + 4);
+    ctx.fillText("spikes", LBL - 12, spkTrackY + spkTrackH / 2 + 4);
 
     ctx.fillStyle = T.teal;
-    ctx.fillText("v_mem", LBL - 8, vTrackY + trackH / 2 + 4);
+    ctx.fillText("v_mem", LBL - 12, vTrackY + trackH / 2 + 4);
 
     ctx.fillStyle = T.green;
-    ctx.fillText("i_syn", LBL - 8, iTrackY + trackH / 2 + 4);
+    ctx.fillText("i_syn", LBL - 12, iTrackY + trackH / 2 + 4);
 
     function trackY(val, trackTop, th, lo, hi) {
       return trackTop + th - ((val - lo) / (hi - lo)) * th;
     }
 
-    const vLo = -0.15,
-      vHi = 0.35;
+    // Widened visual boundaries so the peaks/valleys don't hit the ceiling/floor
+    const vLo = -0.25,
+      vHi = 0.45;
     const iLo = 0,
-      iHi = 0.65; // Fixed upper bound so i_syn fits perfectly
+      iHi = 0.65;
 
     const thY = trackY(v_thr, vTrackY, trackH, vLo, vHi);
     const rstY = trackY(v_rst, vTrackY, trackH, vLo, vHi);
@@ -339,9 +341,9 @@ let gT = 0; // global time in seconds
     ctx.font = "600 10px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
     ctx.fillStyle = rgba(T.coral, 0.9);
-    ctx.fillText("thresh 0.25", LBL - 8, thY + 4);
+    ctx.fillText("thresh 0.25", LBL - 12, thY + 4);
     ctx.fillStyle = T.muted;
-    ctx.fillText("reset −0.1", LBL - 8, rstY + 4);
+    ctx.fillText("reset −0.1", LBL - 12, rstY + 4);
 
     // Apply Clipping Mask so graph data NEVER touches the left labels
     ctx.save();
@@ -426,10 +428,11 @@ let gT = 0; // global time in seconds
       ctx.fillStyle = rgba(T.amber, 0.85);
       ctx.font = "600 10px IBM Plex Mono, monospace";
       ctx.textAlign = "left";
+      // Shifted down slightly to avoid vertical collision with i_syn peak
       ctx.fillText(
         "↑ neighbor cascade inject",
         cascadeX + 6,
-        iTrackY + trackH - 6,
+        iTrackY + trackH - 2,
       );
     }
 
@@ -958,13 +961,14 @@ let gT = 0; // global time in seconds
     let lx, ly;
     if (isSmall) {
       lx = marginLeft;
-      ly = heatTop + SEQ * HEAT_CELL + 30;
+      ly = heatTop + SEQ * HEAT_CELL + 24;
       ctx.textAlign = "center";
       ctx.fillStyle = T.muted;
+      // Placed safely above the legend list
       ctx.fillText(
         "Resonance matrix",
         heatLeft + (SEQ * HEAT_CELL) / 2,
-        ly + 26,
+        ly - 8,
       );
     } else {
       lx = heatLeft + SEQ * HEAT_CELL + 16;
@@ -1620,7 +1624,10 @@ let gT = 0; // global time in seconds
     const LBL = Math.max(90, Math.min(220, W * 0.35));
     const pipeLeft = PAD + LBL + 10;
     const pipeW = W - pipeLeft - PAD * 2;
-    const totalH = H - PAD * 2;
+
+    // Reserve dedicated space at the bottom specifically for the legend (prevents overlap)
+    const legendSpace = W < 500 ? 45 : 30;
+    const totalH = H - PAD * 2 - legendSpace;
 
     // 1. Draw Static Layer Boundaries
     let curY = PAD;
@@ -1691,87 +1698,127 @@ let gT = 0; // global time in seconds
       let targetX = p.x;
       let targetAlpha = 0;
       let targetSize = 2;
-      let targetColor = curLayer.color();
+      let targetColor = T.teal; // Fallback
 
       const laneSpacing = pipeW / 10;
       const laneX = pipeLeft + p.lane * laneSpacing + laneSpacing / 2;
       const centerSpread =
         pipeLeft + pipeW * 0.1 + ((p.id % 20) / 20) * (pipeW * 0.8);
 
-      // Define visual behavior based on the current architectural stage
+      const isFast = p.lane < 8; // Differentiates T_fast (0-7) from T_slow (8-9)
+
+      // Defined with strict block scoping {} to prevent identifier shadowing
       switch (curLayer.id) {
-        case "token": // [1] Dense pulse
+        case "token": {
+          // [1] Dense pulse
           targetX = pipeLeft + pipeW / 2 + (Math.random() - 0.5) * 15;
           targetAlpha = 0.9;
           targetSize = 2.5;
+          targetColor = T.coral;
           break;
-        case "embed": // [512] Dense expansion
+        }
+        case "embed": {
+          // [512] Dense expansion
           targetX = centerSpread;
           targetAlpha = 0.6;
           targetSize = 2.2;
+          targetColor = T.faint; // Dense Continuous
           break;
-        case "temporal": //[10 x 512] Split into Fast + Slow lanes
-          targetX = laneX + (Math.random() - 0.5) * (laneSpacing * 0.4);
-          targetAlpha = 0.7;
-          targetColor = p.lane < 8 ? T.teal : T.amber;
+        }
+        case "temporal": {
+          //[10 x 512] Split into Fast + Slow lanes
+          targetX =
+            laneX +
+            (Math.random() - 0.5) * (laneSpacing * (isFast ? 0.5 : 0.05));
+          targetAlpha = isFast ? 0.7 : 0.5;
+          targetColor = isFast ? T.teal : T.amber;
           break;
-        case "input_lif": // Binary Conversion -> Sparsity starts fading in
+        }
+        case "input_lif": {
+          // Binary Conversion -> Sparsity starts fading in
           targetX = laneX;
-          targetAlpha = 0.7 * (1 - progress); // fades to 0
-          targetColor = p.lane < 8 ? T.teal : T.amber;
+          targetAlpha = 0.7 * (1 - progress);
+          targetColor = isFast ? T.teal : T.amber;
+
           if (progress > 0.6) {
-            let isSpike =
-              Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) >
-              1.85;
+            let isSpike = isFast
+              ? Math.sin(p.id * 13.7 + t * 2.2) +
+                  Math.cos(p.id * 7.1 + t * 1.6) >
+                1.85
+              : Math.sin(p.id * 9.3 + t * 0.8) +
+                  Math.cos(p.id * 4.2 + t * 0.5) >
+                1.95;
             if (isSpike) {
               targetAlpha = 1;
-              targetSize = 3;
+              targetSize = isFast ? 3.0 : 2.0;
               targetColor = T.coral;
             } else {
-              targetAlpha = 0.04;
+              targetAlpha = isFast ? 0.04 : 0.08;
               targetSize = 1;
             }
           }
           break;
-        case "blocks": //[10 x 512] 97% Sparse Spikes
-          targetX = laneX + Math.sin(y * 0.1 + p.id) * 2; // subtle wiggle
-          let isSpike =
-            Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) >
-            1.85; // highly selective firing
+        }
+        case "blocks": {
+          //[10 x 512] 97% Sparse Spikes
+          let jitter = isFast
+            ? Math.sin(y * 0.1 + p.id) * 2
+            : Math.sin(y * 0.05 + p.id) * 0.5;
+          targetX = laneX + jitter;
+
+          let isSpike = isFast
+            ? Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) >
+              1.85
+            : Math.sin(p.id * 9.3 + t * 0.8) + Math.cos(p.id * 4.2 + t * 0.5) >
+              1.95;
+
           if (isSpike) {
             targetAlpha = 1;
-            targetSize = 3.5;
-            targetColor = T.coral;
+            targetSize = isFast ? 3.5 : 2.5;
+            targetColor = T.coral; // Sparse Spike
           } else {
-            targetAlpha = 0.03; // Dead neurons barely visible
+            targetAlpha = isFast ? 0.03 : 0.06;
             targetSize = 1;
-            targetColor = p.lane < 8 ? T.teal : T.amber;
+            targetColor = isFast ? T.teal : T.amber;
           }
           break;
-        case "readout_lif": // Accumulating continuous membrane potentials
+        }
+        case "readout_lif": {
+          // Accumulating continuous membrane potentials
           targetX = laneX;
-          targetAlpha = 0.2 + 0.6 * Math.abs(Math.sin(p.id * 12 + t * 2));
-          targetSize = 2.5;
-          targetColor = T.purple;
+          targetAlpha = isFast
+            ? 0.2 + 0.6 * Math.abs(Math.sin(p.id * 12 + t * 2))
+            : 0.3 + 0.4 * Math.abs(Math.sin(p.id * 5 + t * 0.5));
+          targetSize = isFast ? 2.5 : 2.0;
+          targetColor = isFast ? T.teal : T.amber;
           break;
-        case "ema": // [512] Collapse 10 temporal lanes back to 1
+        }
+        case "ema": {
+          // [512] Collapse 10 temporal lanes back to 1
           targetX = centerSpread;
           targetAlpha = 0.7;
           targetSize = 2;
-          targetColor = T.teal;
+          targetColor = T.faint; // Dense Continuous
           break;
-        case "norm": // [512] Normalization
+        }
+        case "norm": {
+          // [512] Normalization
           targetX = centerSpread;
           targetAlpha = 0.5;
           targetSize = 2;
+          targetColor = T.faint; // Dense Continuous
           break;
-        case "head": // [128k] Massive expansion to logits vocab
+        }
+        case "head": {
+          //[128k] Massive expansion to logits vocab
           let expansion = 1 + progress * 2.5;
           let center = pipeLeft + pipeW / 2;
           targetX = center + (centerSpread - center) * expansion;
           targetAlpha = 0.8 * (1 - progress); // fades out to the void
           targetSize = 2 + progress * 2;
+          targetColor = T.faint; // Dense Continuous
           break;
+        }
       }
 
       // Smooth interpolations for elegant transitions between layer logic
@@ -1786,7 +1833,6 @@ let gT = 0; // global time in seconds
         const py = y;
         const col = p.color;
 
-        // Apply distinct glowing pulse to firing spikes
         if (p.currentAlpha > 0.8) {
           const grd = ctx.createRadialGradient(
             px,
@@ -1815,17 +1861,20 @@ let gT = 0; // global time in seconds
     ctx.lineWidth = 1;
     ctx.strokeRect(pipeLeft, PAD, pipeW, totalH);
 
-    // 3. Render updated Legend
-    const legY = H - 18;
+    // 3. Render updated Legend (now safely pushed away from the LM Head edge)
+    const legY = H - 16;
     ctx.font = "600 10px IBM Plex Mono, monospace";
     ctx.textAlign = "left";
     if (W < 500) {
+      // Mobile wraps the legend into two rows
       ctx.fillStyle = T.teal;
-      ctx.fillText("● Fast", PAD, legY - 14);
+      ctx.fillText("● Fast", PAD, legY - 18);
       ctx.fillStyle = T.amber;
-      ctx.fillText("● Slow", PAD + 60, legY - 14);
+      ctx.fillText("● Slow", PAD + 60, legY - 18);
       ctx.fillStyle = T.coral;
-      ctx.fillText("● Spike", PAD, legY);
+      ctx.fillText("● Spike", PAD + 120, legY - 18);
+      ctx.fillStyle = T.faint;
+      ctx.fillText("● Dense Continuous", PAD, legY);
     } else {
       ctx.fillStyle = T.teal;
       ctx.fillText("● T_fast", PAD, legY);
