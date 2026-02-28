@@ -47,6 +47,48 @@
     --border: #152033;
     --border2: #253550;
   }
+
+  body {
+    background-image: radial-gradient(
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    ) !important;
+  }
+
+  ::selection {
+    background: rgba(29, 214, 190, 0.25) !important;
+  }
+}
+
+/* ── Custom Playful Scrollbar ── */
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) var(--bg-page);
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border2);
+  border-radius: 6px;
+  border: 3px solid var(--bg-page); /* Creates a nice padding effect */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--teal);
+}
+
+/* ── Thematic Text Selection ── */
+::selection {
+  background: rgba(10, 149, 128, 0.25);
+  color: inherit;
 }
 
 *,
@@ -57,16 +99,17 @@
   padding: 0;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
 body {
   background: var(--bg-page);
   color: var(--text-main);
   font-family: var(--font-sans);
   line-height: 1.72;
   overflow-x: hidden;
+
+  /* Ambitious/Cool: A very subtle "sparse matrix" dot grid background */
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: -16px -16px;
 }
 
 /* ── Typography ── */
@@ -76,6 +119,7 @@ h1 {
   letter-spacing: -0.05em;
   line-height: 1.08;
   margin-bottom: 1.5rem;
+  text-wrap: balance;
 }
 
 h2 {
@@ -84,6 +128,7 @@ h2 {
   letter-spacing: -0.03em;
   margin-bottom: 1rem;
   line-height: 1.2;
+  text-wrap: balance;
 }
 
 p {
@@ -91,9 +136,19 @@ p {
   font-size: 1.05rem;
   color: var(--text-muted);
 }
+
 p:last-child {
   margin-bottom: 0;
 }
+
+/* Beautifully justified text ONLY inside the main content cards */
+main p {
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+  text-wrap: pretty;
+}
+
 strong {
   color: var(--text-main);
   font-weight: 600;
@@ -113,6 +168,7 @@ ul {
   margin: 0 0 1.3rem 22px;
   color: var(--text-muted);
 }
+
 li {
   font-size: 1.05rem;
   margin-bottom: 0.5rem;
@@ -154,6 +210,7 @@ header {
   position: relative;
   overflow: hidden;
 }
+
 header::before {
   content: "";
   position: absolute;
@@ -197,6 +254,7 @@ header::before {
   position: relative;
   box-shadow: 0 2px 24px rgba(0, 0, 0, 0.04);
 }
+
 @media (max-width: 700px) {
   .card {
     padding: 44px 22px;
@@ -219,6 +277,7 @@ header::before {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
 @media (max-width: 700px) {
   .step-badge {
     left: 22px;
@@ -234,11 +293,19 @@ header::before {
   margin: 2.2rem 0;
   overflow: hidden;
   position: relative;
+
+  /* Centers the visual canvases perfectly inside their wrappers */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .vis-wrap canvas {
   display: block;
   width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .vis-caption {
@@ -269,6 +336,7 @@ header::before {
   z-index: 2;
   animation: blink 2.5s ease-in-out infinite;
 }
+
 @keyframes blink {
   0%,
   100% {
@@ -288,6 +356,7 @@ header::before {
   overflow: hidden;
   border: 1px solid var(--border2);
 }
+
 .code-header {
   background: rgba(255, 255, 255, 0.025);
   padding: 10px 16px;
@@ -296,11 +365,14 @@ header::before {
   align-items: center;
   gap: 8px;
 }
+
 .dot {
   width: 11px;
   height: 11px;
   border-radius: 50%;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 .dot:nth-child(1) {
   background: #ef4444;
 }
@@ -310,20 +382,38 @@ header::before {
 .dot:nth-child(3) {
   background: #22c55e;
 }
+
+/* Playful: dots pulse when hovering over code window header */
+.code-header:hover .dot {
+  transform: scale(1.3);
+}
+.code-header:hover .dot:nth-child(1) {
+  transition-delay: 0s;
+}
+.code-header:hover .dot:nth-child(2) {
+  transition-delay: 0.05s;
+}
+.code-header:hover .dot:nth-child(3) {
+  transition-delay: 0.1s;
+}
+
 .code-fname {
   font-family: var(--font-mono);
   font-size: 0.77rem;
   color: rgba(255, 255, 255, 0.22);
   margin-left: 10px;
 }
+
 .code-body {
   padding: 20px 24px;
   overflow-x: auto;
 }
+
 pre {
   margin: 0;
   white-space: pre;
 }
+
 pre code {
   font-family: var(--font-mono);
   font-size: 0.88rem;
@@ -333,6 +423,7 @@ pre code {
   color: #cbd5e1;
   line-height: 1.7;
 }
+
 .c-c {
   color: #475569;
   font-style: italic;
@@ -360,10 +451,12 @@ footer {
   color: var(--text-muted);
   font-size: 0.95rem;
 }
+
 footer p {
   color: var(--text-muted);
   font-size: 0.9rem;
 }
+
 footer .mono {
   font-family: var(--font-mono);
   font-size: 0.82rem;

@@ -491,7 +491,7 @@ let gT = 0; // global time in seconds
     const W = ch.w,
       H = ch.h;
     const cx = W / 2,
-      cy = H / 2;
+      cy = H / 2 + 15;
 
     const rIn = Math.min(W, H) * 0.16;
     const rOut = Math.min(W, H) * 0.38;
@@ -629,7 +629,7 @@ let gT = 0; // global time in seconds
     for (let c = 0; c < Nc; c++) {
       const isFire = c_fire[c] > 0.1;
       const isRecv = c_recv[c] > 0.1;
-      const colorHex = isFire ? T.coral : isRecv ? T.teal : T.code;
+      const colorHex = isFire ? T.coral : isRecv ? T.teal : T.border2;
 
       ctx.fillStyle = colorHex;
       ctx.beginPath();
@@ -751,15 +751,22 @@ let gT = 0; // global time in seconds
     ctx.fillStyle = T.muted;
     ctx.font = "bold 13px IBM Plex Mono, monospace";
     ctx.textAlign = "center";
-    ctx.fillText("Scatter-Gather (512 Neurons → 64 Clusters)", cx, 24);
+
+    ctx.fillText("Scatter-Gather (512 Neurons → 64 Clusters)", cx, 36);
 
     ctx.font = "10px IBM Plex Mono, monospace";
     ctx.fillStyle = T.faint;
-    ctx.fillText(
-      "Phase 1: Scatter (Coral) | Phase 2: W_mat (Amber) | Phase 3: Gather (Teal)",
-      cx,
-      40,
-    );
+
+    if (W < 520) {
+      ctx.fillText("Phase 1: Scatter (Coral) | Phase 2: W_mat (Amber)", cx, 54);
+      ctx.fillText("Phase 3: Gather (Teal)", cx, 68);
+    } else {
+      ctx.fillText(
+        "Phase 1: Scatter (Coral) | Phase 2: W_mat (Amber) | Phase 3: Gather (Teal)",
+        cx,
+        54,
+      );
+    }
 
     const activeN = v_mem.filter((v) => v > 0.05).length;
     ctx.fillStyle = T.teal;
@@ -767,7 +774,7 @@ let gT = 0; // global time in seconds
     ctx.fillText(
       `saved from death: ${activeN} / 512  (${((activeN / 512) * 100).toFixed(0)}%)`,
       cx,
-      H - 18,
+      H - 16,
     );
   });
 })();
@@ -919,7 +926,7 @@ let gT = 0; // global time in seconds
         const x = heatLeft + j * HEAT_CELL;
         const y = heatTop + i * HEAT_CELL;
         if (j > i) {
-          ctx.fillStyle = rgba(T.code, 0.7);
+          ctx.fillStyle = rgba(T.text, 0.12);
           ctx.fillRect(x, y, HEAT_CELL, HEAT_CELL);
           continue;
         }
@@ -932,7 +939,7 @@ let gT = 0; // global time in seconds
         if (isProcessed) {
           cellColor = isTop
             ? rgba(T.teal, 0.15 + norm * 0.6)
-            : rgba(T.code, 0.9);
+            : rgba(T.text, 0.25);
         } else if (isScan) {
           cellColor = rgba(T.coral, 0.1 + norm * 0.55);
         } else {
@@ -988,10 +995,14 @@ let gT = 0; // global time in seconds
     ctx.fillText("■ top-K kept", lx, ly);
     ctx.fillStyle = rgba(T.coral, 0.8);
     ctx.fillText("■ scanning", lx, ly + 16);
-    ctx.fillStyle = rgba(T.code, 0.8);
+
+    ctx.fillStyle = rgba(T.text, 0.25);
     ctx.fillText("■ zeroed (masked)", lx, ly + 32);
-    ctx.fillStyle = T.faint;
+
+    ctx.fillStyle = rgba(T.text, 0.12);
     ctx.fillText("■ future (causal)", lx, ly + 48);
+
+    ctx.fillStyle = T.faint;
     ctx.fillText(`top-K = ${TOP_K}`, lx, ly + 70);
   });
 })();
@@ -1889,11 +1900,38 @@ let gT = 0; // global time in seconds
 })();
 
 // ────────────────────────────────────────────────────────────────────────────
-// MAIN ANIMATION LOOP
+// MAIN ANIMATION LOOP (Optimized with IntersectionObserver)
 // ────────────────────────────────────────────────────────────────────────────
+const canvases = document.querySelectorAll(".vis-wrap canvas");
+const visibilityMap = new Map();
+
+// Ambitious Performance: Only compute/draw canvases that are actually on-screen
+if ("IntersectionObserver" in window) {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        visibilityMap.set(entry.target.id, entry.isIntersecting);
+      });
+    },
+    { rootMargin: "150px" },
+  ); // Pre-starts the animation right before scrolling into view
+
+  canvases.forEach((c) => observer.observe(c));
+}
+
 function loop(ts) {
   gT = ts * 0.001;
-  for (const fn of anims) fn(gT);
+
+  // Since anims array order perfectly matches DOM canvas order,
+  // we can map the visibility state to save massive amounts of CPU/Battery.
+  anims.forEach((fn, idx) => {
+    const canvasId = canvases[idx]?.id;
+    // If not tracked yet, or if visible, run the animation
+    if (!visibilityMap.has(canvasId) || visibilityMap.get(canvasId)) {
+      fn(gT);
+    }
+  });
+
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
