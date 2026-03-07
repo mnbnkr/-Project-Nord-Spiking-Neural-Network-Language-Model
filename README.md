@@ -264,7 +264,6 @@ If you're interested in collaborating, providing compute, or have questions — 
 </p>
 
 - FineWeb-Edu dataset by HuggingFace
-- Anthropic Claude for architecture discussions and debugging
 - My Model https://huggingface.co/zerdovzad/Nord-AI/
 - Thank this person for the visual presentation https://mnbnkr.github.io/-Project-Nord-Spiking-Neural-Network-Language-Model/
 - https://github.com/mnbnkr
