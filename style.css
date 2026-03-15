@@ -17,6 +17,10 @@
   --green: #0d9b6c;
   --purple: #7c3aed;
 
+  --zone-sensory: var(--teal);
+  --zone-association: var(--purple);
+  --zone-executive: var(--coral);
+
   --border: #dde3ec;
   --border2: #b8c4d4;
 

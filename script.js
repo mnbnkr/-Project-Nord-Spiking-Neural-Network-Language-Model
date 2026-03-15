@@ -131,7 +131,7 @@ let gT = 0; // global time in seconds
     ctx.fillStyle = T.muted;
     ctx.font = "600 12px IBM Plex Mono, monospace";
     ctx.textAlign = "center";
-    ctx.fillText("x = temporal_proj(embed(token))  ∈ ℝ⁵¹²", W / 2, embY + 22);
+    ctx.fillText("x = temporal_proj(embed(token))  ∈ ℝ⁴⁹⁶", W / 2, embY + 22);
 
     // ── 10 temporal current columns ──
     const nCols = 10;
@@ -143,7 +143,7 @@ let gT = 0; // global time in seconds
 
     const barBase = embY - 26;
     const maxFastH = barBase - 85;
-    const maxSlowH = maxFastH * 0.33; // Exactly 5/15 ratio
+    const maxSlowH = maxFastH * 0.32; // Exactly 8/25 ratio
 
     for (let i = 0; i < 10; i++) {
       const isSlow = i >= 8;
@@ -194,26 +194,26 @@ let gT = 0; // global time in seconds
     if (isSmall) {
       ctx.textAlign = "center";
       ctx.fillStyle = T.teal;
-      ctx.fillText("▮▮▮▮▮▮▮▮ T_fast × 8   scale=15", W / 2, 28);
+      ctx.fillText("▮▮▮▮▮▮▮▮ T_fast × 8   scale=25", W / 2, 28);
       ctx.fillStyle = T.amber;
-      ctx.fillText("▮▮ T_slow × 2   scale=5", W / 2, 46);
+      ctx.fillText("▮▮ T_slow × 2   scale=8", W / 2, 46);
     } else {
       ctx.textAlign = "left";
       ctx.fillStyle = T.teal;
       ctx.fillText(
-        "▮▮▮▮▮▮▮▮ T_fast × 8   scale = 15.0",
+        "▮▮▮▮▮▮▮▮ T_fast × 8   scale = 25.0",
         Math.max(20, startX - 20),
         28,
       );
       ctx.fillStyle = T.amber;
       ctx.fillText(
-        "▮▮ T_slow × 2   scale = 5.0",
+        "▮▮ T_slow × 2   scale = 8.0",
         Math.max(20, startX - 20),
         48,
       );
     }
 
-    // ── Left Axis (Fast Amplitude scale=15.0) ──
+    // ── Left Axis (Fast Amplitude scale=25.0) ──
     const axisX = startX - 14;
     ctx.strokeStyle = rgba(T.text, 0.25);
     ctx.lineWidth = 1;
@@ -227,10 +227,10 @@ let gT = 0; // global time in seconds
     ctx.fillStyle = rgba(T.text, 0.6);
     ctx.font = "10px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
-    ctx.fillText("15.0", axisX - 4, barBase - maxFastH + 4);
+    ctx.fillText("25.0", axisX - 4, barBase - maxFastH + 4);
     ctx.fillText("0.0", axisX - 4, barBase + 4);
 
-    // ── Right Axis (Slow Amplitude scale=5.0) ──
+    // ── Right Axis (Slow Amplitude scale=8.0) ──
     const slowRight =
       startX + 9 * colW + 9 * gap + (splitGap - gap) + colW + 14;
     ctx.beginPath();
@@ -241,7 +241,7 @@ let gT = 0; // global time in seconds
     ctx.stroke();
 
     ctx.textAlign = "left";
-    ctx.fillText("5.0", slowRight + 4, barBase - maxSlowH + 4);
+    ctx.fillText("8.0", slowRight + 4, barBase - maxSlowH + 4);
   });
 })();
 
@@ -257,9 +257,9 @@ let gT = 0; // global time in seconds
   let v = -0.1,
     isyn = 0.0,
     refrac = 0;
-  const tau_mem = 0.9,
+  const tau_mem = 0.85,
     tau_syn = 0.5,
-    v_thr = 0.25,
+    v_thr = 0.12,
     v_rst = -0.1;
 
   for (let s = 0; s < SIM; s++) {
@@ -341,7 +341,7 @@ let gT = 0; // global time in seconds
     ctx.font = "600 10px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
     ctx.fillStyle = rgba(T.coral, 0.9);
-    ctx.fillText("thresh 0.25", LBL - 12, thY + 4);
+    ctx.fillText("thresh 0.12", LBL - 12, thY + 4);
     ctx.fillStyle = T.muted;
     ctx.fillText("reset −0.1", LBL - 12, rstY + 4);
 
@@ -456,7 +456,7 @@ let gT = 0; // global time in seconds
   ch.enableMouse();
 
   const Nc = 64; // Clusters (Inner Ring)
-  const D = 512; // Neurons (Outer Ring)
+  const D = 496; // Neurons (Outer Ring)
   const R_W = 3; // Neighbor radius
 
   const v_mem = new Float32Array(D).fill(0);
@@ -752,7 +752,7 @@ let gT = 0; // global time in seconds
     ctx.font = "bold 13px IBM Plex Mono, monospace";
     ctx.textAlign = "center";
 
-    ctx.fillText("Scatter-Gather (512 Neurons → 64 Clusters)", cx, 36);
+    ctx.fillText("Scatter-Gather (496 Neurons → 64 Clusters)", cx, 36);
 
     ctx.font = "10px IBM Plex Mono, monospace";
     ctx.fillStyle = T.faint;
@@ -772,7 +772,7 @@ let gT = 0; // global time in seconds
     ctx.fillStyle = T.teal;
     ctx.font = "600 11px IBM Plex Mono, monospace";
     ctx.fillText(
-      `saved from death: ${activeN} / 512  (${((activeN / 512) * 100).toFixed(0)}%)`,
+      `saved from death: ${activeN} / 496  (${((activeN / 496) * 100).toFixed(0)}%)`,
       cx,
       H - 16,
     );
@@ -1007,8 +1007,239 @@ let gT = 0; // global time in seconds
   });
 })();
 
+// ========================================================================
+// 5. SPIKE-DRIVEN MoE (Association Zone)
+// ========================================================================
+(function () {
+  const ch = new CH("moeCanvas", 420);
+  const N_EXPERTS = 4;
+  const N_TOKENS = 10;
+  const TOP_K = 2;
+  const tokens = Array.from({ length: N_TOKENS }, (_, i) => ({
+    id: i, experts: [0, 1], weights: [0.6, 0.4],
+  }));
+  const expertLoad = new Float32Array(N_EXPERTS).fill(0.25);
+
+  anims.push((t) => {
+    const ctx = ch.fill(T.panel);
+    const W = ch.w, H = ch.h;
+    const PAD = 16;
+    const expertColors = [T.teal, T.amber, T.purple, T.coral];
+    const routerY = 60, expertTop = 110, expertBot = H - 100, mergeY = H - 60;
+    const expertW = Math.min(80, (W - PAD * 2 - 60) / N_EXPERTS);
+    const totalExpertW = N_EXPERTS * expertW + (N_EXPERTS - 1) * 16;
+    const expertStartX = (W - totalExpertW) / 2;
+
+    ctx.fillStyle = T.muted;
+    ctx.font = "bold 13px IBM Plex Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("Spike-Driven MoE: 4 Experts, Top-2 Routing", W / 2, 28);
+
+    // Router bar
+    ctx.fillStyle = rgba(T.blue, 0.12);
+    ctx.fillRect(PAD + 30, routerY - 12, W - PAD * 2 - 60, 24);
+    ctx.strokeStyle = rgba(T.blue, 0.4);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(PAD + 30, routerY - 12, W - PAD * 2 - 60, 24);
+    ctx.fillStyle = T.faint;
+    ctx.font = "600 10px IBM Plex Mono, monospace";
+    ctx.fillText("Spike-Rate Router", W / 2, routerY + 4);
+
+    // Expert columns
+    for (let e = 0; e < N_EXPERTS; e++) {
+      const ex = expertStartX + e * (expertW + 16);
+      const col = expertColors[e];
+      ctx.fillStyle = rgba(col, 0.06);
+      ctx.fillRect(ex, expertTop, expertW, expertBot - expertTop);
+      ctx.strokeStyle = rgba(col, 0.35);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ex, expertTop, expertW, expertBot - expertTop);
+      const cx = ex + expertW / 2;
+      for (let si = 0; si < 6; si++) {
+        const sy = expertTop + 15 + si * ((expertBot - expertTop - 30) / 6);
+        const fires = Math.sin(t * 1.8 + e * 2.3 + si * 1.1) > 0.6;
+        ctx.fillStyle = rgba(col, fires ? 0.8 : 0.12);
+        ctx.beginPath();
+        ctx.arc(cx, sy, fires ? 3 : 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = col;
+      ctx.font = "600 10px IBM Plex Mono, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("E" + e, cx, expertBot + 14);
+      const barW = expertW - 8, barH = 8, barY = expertBot + 20;
+      ctx.fillStyle = rgba(col, 0.15);
+      ctx.fillRect(ex + 4, barY, barW, barH);
+      const load = 0.2 + 0.15 * Math.sin(t * 0.3 + e * 1.5);
+      expertLoad[e] += (load - expertLoad[e]) * 0.05;
+      ctx.fillStyle = rgba(col, 0.6);
+      ctx.fillRect(ex + 4, barY, barW * Math.min(expertLoad[e] * 3, 1), barH);
+    }
+
+    // Animated tokens
+    for (let ti = 0; ti < N_TOKENS; ti++) {
+      const tok = tokens[ti];
+      const e0 = Math.floor(Math.abs(Math.sin(t * 0.2 + ti * 1.7)) * N_EXPERTS) % N_EXPERTS;
+      let e1 = (e0 + 1 + Math.floor(Math.abs(Math.cos(t * 0.15 + ti * 2.3)) * (N_EXPERTS - 1))) % N_EXPERTS;
+      if (e1 === e0) e1 = (e0 + 1) % N_EXPERTS;
+      tok.experts = [e0, e1];
+      const tokX = PAD + 40 + (ti / (N_TOKENS - 1)) * (W - PAD * 2 - 80);
+      const phase = ((t * 0.6 + ti * 0.15) % 3) / 3;
+      if (phase < 0.33) {
+        const py = routerY + phase * 3 * (expertTop - routerY);
+        ctx.fillStyle = rgba(T.text, 0.6);
+        ctx.beginPath(); ctx.arc(tokX, py, 3.5, 0, Math.PI * 2); ctx.fill();
+      } else if (phase < 0.8) {
+        const prog = (phase - 0.33) / 0.47;
+        for (let k = 0; k < TOP_K; k++) {
+          const ei = tok.experts[k];
+          const ex = expertStartX + ei * (expertW + 16) + expertW / 2;
+          const ey = expertTop + prog * (expertBot - expertTop);
+          ctx.fillStyle = rgba(expertColors[ei], k === 0 ? 0.8 : 0.4);
+          ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fill();
+        }
+      } else {
+        const prog = (phase - 0.8) / 0.2;
+        const py = expertBot + prog * (mergeY - expertBot);
+        ctx.fillStyle = rgba(T.text, 0.5 * (1 - prog));
+        ctx.beginPath(); ctx.arc(tokX, py, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    ctx.fillStyle = rgba(T.green, 0.08);
+    ctx.fillRect(PAD + 30, mergeY - 8, W - PAD * 2 - 60, 16);
+    ctx.fillStyle = T.faint;
+    ctx.font = "10px IBM Plex Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("Weighted Merge", W / 2, mergeY + 4);
+  });
+})();
+
+// ========================================================================
+// 6. MEMORY CORTEX
+// ========================================================================
+(function () {
+  const ch = new CH("memCanvas", 400);
+  const M = 128, COLS = 16, ROWS = 8, N_HEADS = 4;
+  const memAct = new Float32Array(M).fill(0);
+  let gateLevel = 0.5;
+
+  anims.push((t) => {
+    const ctx = ch.fill(T.panel);
+    const W = ch.w, H = ch.h;
+    const hc = [T.teal, T.amber, T.coral, T.purple];
+
+    ctx.fillStyle = T.muted;
+    ctx.font = "bold 13px IBM Plex Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("Memory Cortex: 128 Slots, 4 Read Heads, Gated Write", W / 2, 24);
+
+    const gridLeft = 80, gridTop = 50;
+    const cellW = Math.min(18, (W - gridLeft - 120) / COLS);
+    const cellH = Math.min(18, (H - gridTop - 120) / ROWS);
+    const gridW = COLS * cellW, gridH = ROWS * cellH;
+
+    // Gate bar
+    const gateX = 20, gateW = 24, gateTop = gridTop;
+    gateLevel = 0.3 + 0.4 * (0.5 + 0.5 * Math.sin(t * 0.5));
+    ctx.fillStyle = rgba(T.border2, 0.15);
+    ctx.fillRect(gateX, gateTop, gateW, gridH);
+    const fillH = gridH * gateLevel;
+    const gateGrd = ctx.createLinearGradient(gateX, gateTop + gridH - fillH, gateX, gateTop + gridH);
+    gateGrd.addColorStop(0, rgba(T.green, 0.7));
+    gateGrd.addColorStop(1, rgba(T.green, 0.2));
+    ctx.fillStyle = gateGrd;
+    ctx.fillRect(gateX, gateTop + gridH - fillH, gateW, fillH);
+    ctx.strokeStyle = rgba(T.green, 0.5);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(gateX, gateTop, gateW, gridH);
+
+    const threshY = gateTop + gridH * (1 - 0.3);
+    ctx.strokeStyle = rgba(T.coral, 0.6);
+    ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(gateX - 2, threshY); ctx.lineTo(gateX + gateW + 2, threshY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = T.faint;
+    ctx.font = "9px IBM Plex Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("Gate", gateX + gateW / 2, gateTop - 6);
+    ctx.fillText("0.3", gateX + gateW + 10, threshY + 3);
+
+    // Memory grid
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const idx = r * COLS + c;
+        const x = gridLeft + c * cellW, y = gridTop + r * cellH;
+        memAct[idx] *= 0.997;
+        if (Math.sin(t * 0.8 + idx * 0.5) > 0.92 && gateLevel > 0.3) {
+          memAct[idx] = Math.min(1, memAct[idx] + 0.4);
+        }
+        const intensity = memAct[idx];
+        ctx.fillStyle = rgba(T.teal, 0.05 + intensity * 0.5);
+        ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+        if (intensity > 0.3) {
+          ctx.fillStyle = rgba(T.teal, intensity * 0.3);
+          ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+        }
+      }
+    }
+    ctx.strokeStyle = rgba(T.border2, 0.3);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(gridLeft, gridTop, gridW, gridH);
+
+    // 4 Attention read head scan lines
+    for (let h = 0; h < N_HEADS; h++) {
+      const scanRow = Math.floor(((Math.sin(t * (0.3 + h * 0.15) + h * 1.5) + 1) / 2) * ROWS);
+      const row = Math.min(scanRow, ROWS - 1);
+      const sy = gridTop + row * cellH + cellH / 2;
+      ctx.strokeStyle = rgba(hc[h], 0.5);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(gridLeft - 4, sy); ctx.lineTo(gridLeft + gridW + 4, sy); ctx.stroke();
+      ctx.fillStyle = hc[h];
+      ctx.beginPath(); ctx.arc(gridLeft + gridW + 12, sy, 4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.font = "9px IBM Plex Mono, monospace";
+    ctx.textAlign = "left";
+    for (let h = 0; h < N_HEADS; h++) {
+      ctx.fillStyle = hc[h];
+      ctx.fillText("H" + h, gridLeft + gridW + 20, gridTop + 12 + h * 16);
+    }
+
+    // Persistent LIF comparison traces
+    const traceY = gridTop + gridH + 30;
+    const traceW = Math.min(gridW, W - gridLeft - 40);
+    const traceH = 50;
+    ctx.fillStyle = T.faint;
+    ctx.font = "600 10px IBM Plex Mono, monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("Persistent LIF Decay Comparison:", gridLeft, traceY - 6);
+
+    ctx.strokeStyle = T.teal; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let px = 0; px < traceW; px++) {
+      const py = traceY + traceH * (1 - Math.pow(0.99, px * 0.5));
+      px === 0 ? ctx.moveTo(gridLeft + px, py) : ctx.lineTo(gridLeft + px, py);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = rgba(T.coral, 0.5); ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    for (let px = 0; px < traceW; px++) {
+      const py = traceY + traceH * (1 - Math.pow(0.85, px * 0.5));
+      px === 0 ? ctx.moveTo(gridLeft + px, py) : ctx.lineTo(gridLeft + px, py);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+
+    ctx.font = "10px IBM Plex Mono, monospace";
+    ctx.fillStyle = T.teal;
+    ctx.fillText("t=0.99 (Memory)", gridLeft + traceW + 6, traceY + 10);
+    ctx.fillStyle = rgba(T.coral, 0.7);
+    ctx.fillText("t=0.85 (Normal)", gridLeft + traceW + 6, traceY + 28);
+  });
+})();
+
 // ════════════════════════════════════════════════════════════════════════
-// 5. STDP – dynamically bounded trace width & safe text alignment
+// 7. STDP – dynamically bounded trace width & safe text alignment
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("stdpCanvas", 420);
@@ -1249,7 +1480,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 6. LEAKY CLAMP – fixed scale radius to mathematically prevent overlap
+// 8. LEAKY CLAMP – fixed scale radius to mathematically prevent overlap
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("lkyCanvas", 340);
@@ -1260,119 +1491,137 @@ let gT = 0; // global time in seconds
       H = ch.h;
 
     const PAD = 48;
-    const scale = Math.min((H - PAD * 2) * 0.45, W / 7.5);
-    const cxL = PAD + (W / 2 - PAD) * 0.5;
-    const cxR = W / 2 + (W / 2 - PAD) * 0.5;
+    const scale = Math.min((H - PAD * 2) * 0.4, W / 10);
+    const thirdW = W / 3;
+    const cx1 = thirdW * 0.5;
+    const cx2 = thirdW * 1.5;
+    const cx3 = thirdW * 2.5;
     const baseY = H / 2 + 20;
     const floor = -0.1,
       leak = 0.1;
 
-    for (const cx of [cxL, cxR]) {
+    // Draw axes for all 3 panels
+    for (const cx of [cx1, cx2, cx3]) {
       ctx.strokeStyle = rgba(T.border2, 0.4);
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(cx - scale * 1.3, baseY);
-      ctx.lineTo(cx + scale * 1.3, baseY);
-      ctx.moveTo(cx, baseY + scale * 1.15);
-      ctx.lineTo(cx, baseY - scale * 1.15);
+      ctx.moveTo(cx - scale * 1.2, baseY);
+      ctx.lineTo(cx + scale * 1.2, baseY);
+      ctx.moveTo(cx, baseY + scale * 1.1);
+      ctx.lineTo(cx, baseY - scale * 1.1);
       ctx.stroke();
       ctx.fillStyle = T.faint;
-      ctx.font = "10px IBM Plex Mono, monospace";
+      ctx.font = "9px IBM Plex Mono, monospace";
       ctx.textAlign = "center";
-      ctx.fillText("0", cx + 5, baseY + 13);
-      // Added numerical axis markers for immediate clarity
-      ctx.fillText("−1", cx - scale, baseY + 13);
-      ctx.fillText("+1", cx + scale, baseY + 13);
-      ctx.fillText("x", cx + scale * 1.3, baseY + 13);
+      ctx.fillText("0", cx + 5, baseY + 12);
+      ctx.fillText("x", cx + scale * 1.2, baseY + 12);
       ctx.textAlign = "right";
-      ctx.fillText("f(x)", cx - 4, baseY - scale * 1.1 + 10);
+      ctx.fillText("f(x)", cx - 4, baseY - scale + 10);
     }
 
+    const titleFont = `bold ${Math.max(9, Math.min(12, W / 50))}px IBM Plex Mono, monospace`;
+
+    // Panel 1: Standard ReLU
     ctx.fillStyle = T.muted;
-    ctx.font = `bold ${Math.max(10, Math.min(13, W / 40))}px IBM Plex Mono, monospace`;
+    ctx.font = titleFont;
     ctx.textAlign = "center";
-    ctx.fillText("ReLU  (standard)", cxL, PAD - 12);
+    ctx.fillText("ReLU (standard)", cx1, PAD - 12);
 
     ctx.strokeStyle = rgba(T.coral, 0.7);
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(cxL - scale * 1.2, baseY);
-    ctx.lineTo(cxL, baseY);
-    ctx.lineTo(cxL + scale * 1.1, baseY - scale * 1.1);
+    ctx.moveTo(cx1 - scale * 1.1, baseY);
+    ctx.lineTo(cx1, baseY);
+    ctx.lineTo(cx1 + scale, baseY - scale);
     ctx.stroke();
 
-    const arrowY = baseY - 15;
     ctx.fillStyle = rgba(T.coral, 0.8);
-    ctx.font = "11px IBM Plex Mono, monospace";
-    ctx.fillText("0 (DEAD)", cxL - scale * 0.6, arrowY);
-    ctx.strokeStyle = rgba(T.coral, 0.4);
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(cxL - scale * 0.4, arrowY + 2);
-    ctx.lineTo(cxL - scale * 0.05, baseY - 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.font = "10px IBM Plex Mono, monospace";
+    ctx.fillText("0 (DEAD)", cx1 - scale * 0.5, baseY - 12);
 
+    // Panel 2: LeakyClamp sensory/association (floor=-0.1)
     ctx.fillStyle = T.teal;
-    ctx.font = `bold ${Math.max(10, Math.min(13, W / 40))}px IBM Plex Mono, monospace`;
-    ctx.fillText("LeakyClamp  (Nord)", cxR, PAD - 12);
+    ctx.font = titleFont;
+    ctx.fillText("LeakyClamp (sens/assoc)", cx2, PAD - 12);
 
     const floorY = baseY - floor * scale;
     ctx.strokeStyle = rgba(T.amber, 0.55);
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(cxR - scale * 1.2, floorY);
-    ctx.lineTo(cxR + scale * 0.1, floorY);
+    ctx.moveTo(cx2 - scale * 1.1, floorY);
+    ctx.lineTo(cx2 + scale * 0.1, floorY);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = T.amber;
-    ctx.font = "10px IBM Plex Mono, monospace";
+    ctx.font = "9px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
-    ctx.fillText("floor = −0.1", cxR - scale * 0.8, floorY - 5);
+    ctx.fillText("floor = -0.1", cx2 - scale * 0.6, floorY - 4);
 
     ctx.strokeStyle = T.teal;
     ctx.lineWidth = 2.8;
     ctx.beginPath();
     for (let i = 0; i <= 200; i++) {
-      const x_val = -1.3 + (i / 200) * 2.6;
+      const x_val = -1.2 + (i / 200) * 2.4;
       const y_val = x_val >= 0 ? x_val : Math.max(leak * x_val, floor);
-      const px = cxR + x_val * scale,
+      const px = cx2 + x_val * scale,
         py = baseY - y_val * scale;
       i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
     }
     ctx.stroke();
 
-    ctx.fillStyle = rgba(T.teal, 0.7);
-    ctx.font = "11px IBM Plex Mono, monospace";
+    ctx.fillStyle = rgba(T.teal, 0.6);
+    ctx.font = "9px IBM Plex Mono, monospace";
     ctx.textAlign = "left";
-    ctx.fillText(`slope = leak ≈ ${leak}`, cxR - scale * 1.1, baseY + 40);
+    ctx.fillText(`leak = ${leak}`, cx2 - scale * 1, baseY + 35);
 
+    // Panel 3: Executive zone (force_nonneg=True -> F.relu)
+    ctx.fillStyle = T.coral;
+    ctx.font = titleFont;
+    ctx.textAlign = "center";
+    ctx.fillText("Executive (force_nonneg)", cx3, PAD - 12);
+
+    ctx.strokeStyle = rgba(T.coral, 0.7);
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(cx3 - scale * 1.1, baseY);
+    ctx.lineTo(cx3, baseY);
+    ctx.lineTo(cx3 + scale, baseY - scale);
+    ctx.stroke();
+
+    ctx.fillStyle = rgba(T.coral, 0.6);
+    ctx.font = "9px IBM Plex Mono, monospace";
+    ctx.fillText("0 (intentional)", cx3 - scale * 0.5, baseY - 12);
+    ctx.fillStyle = rgba(T.purple, 0.7);
+    ctx.font = "9px IBM Plex Mono, monospace";
+    ctx.fillText("clean readout", cx3 + scale * 0.1, baseY + 35);
+
+    // Animated dot across all 3 panels
     const phase = (t % 4.0) / 4.0;
-    const x_anim = -1.2 + phase * 2.4;
-    for (const [cx_dot, type] of [
-      [cxL, "relu"],
-      [cxR, "lky"],
+    const x_anim = -1.1 + phase * 2.2;
+    for (const [cx_dot, type, dotCol] of [
+      [cx1, "relu", T.coral],
+      [cx2, "lky", T.teal],
+      [cx3, "exec", T.coral],
     ]) {
       const y_anim =
         x_anim >= 0
           ? x_anim
-          : type === "relu"
-            ? 0
-            : Math.max(leak * x_anim, floor);
+          : type === "lky"
+            ? Math.max(leak * x_anim, floor)
+            : 0;
       const px = cx_dot + x_anim * scale,
         py = baseY - y_anim * scale;
-      const grd = ctx.createRadialGradient(px, py, 2, px, py, 14);
-      grd.addColorStop(0, rgba(type === "relu" ? T.coral : T.teal, 0.5));
+      const grd = ctx.createRadialGradient(px, py, 2, px, py, 12);
+      grd.addColorStop(0, rgba(dotCol, 0.5));
       grd.addColorStop(1, "transparent");
       ctx.fillStyle = grd;
       ctx.beginPath();
-      ctx.arc(px, py, 14, 0, Math.PI * 2);
+      ctx.arc(px, py, 12, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = type === "relu" ? T.coral : T.teal;
+      ctx.fillStyle = dotCol;
       ctx.beginPath();
-      ctx.arc(px, py, 5.5, 0, Math.PI * 2);
+      ctx.arc(px, py, 4.5, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -1386,7 +1635,7 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 7. EMA TEMPORAL READOUT – fully responsive to prevent squeezed cells
+// 9. EMA TEMPORAL READOUT – fully responsive to prevent squeezed cells
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   const ch = new CH("emaCanvas", 380);
@@ -1539,76 +1788,24 @@ let gT = 0; // global time in seconds
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// 8. FULL ARCHITECTURE STACK – layout perfectly adapts to container bounds
+// 10. FULL ARCHITECTURE STACK – layout perfectly adapts to container bounds
 // ════════════════════════════════════════════════════════════════════════
 (function () {
-  const ch = new CH("stackCanvas", 820);
+  const ch = new CH("stackCanvas", 950);
 
-  // Flipped Top-to-Bottom order with accurate proportions
+  // v4.2 Zonal Architecture: 3 zones × 2 blocks each
   const LAYERS = [
-    {
-      id: "token",
-      label: "Token",
-      sub: '"Hello" → index 9426',
-      color: () => T.coral,
-      hRatio: 0.07,
-    },
-    {
-      id: "embed",
-      label: "Embedding",
-      sub: "vocab 128k → d=512",
-      color: () => T.green,
-      hRatio: 0.07,
-    },
-    {
-      id: "temporal",
-      label: "Temporal Proj.",
-      sub: "T_fast ×8 + T_slow ×2",
-      color: () => T.amber,
-      hRatio: 0.1,
-    },
-    {
-      id: "input_lif",
-      label: "Input LIF",
-      sub: "continuous → spikes",
-      color: () => T.purple,
-      hRatio: 0.1,
-    },
-    {
-      id: "blocks",
-      label: "NordBlock ×6",
-      sub: "97% sparse spikes",
-      color: () => T.blue,
-      hRatio: 0.36,
-    },
-    {
-      id: "readout_lif",
-      label: "Readout LIF",
-      sub: "extracts v_membrane",
-      color: () => T.purple,
-      hRatio: 0.1,
-    },
-    {
-      id: "ema",
-      label: "EMA Readout",
-      sub: "collapse T→1",
-      color: () => T.teal,
-      hRatio: 0.07,
-    },
-    {
-      id: "norm",
-      label: "LayerNorm",
-      sub: "normalize",
-      color: () => T.faint,
-      hRatio: 0.05,
-    },
-    {
-      id: "head",
-      label: "LM Head",
-      sub: "Linear → logits [128k]",
-      color: () => T.amber,
-      hRatio: 0.08,
-    },
+    { id: "token", label: "Token", sub: '"Hello" → index 9426', color: () => T.coral, hRatio: 0.06 },
+    { id: "embed", label: "Embedding", sub: "vocab 128k → d=496", color: () => T.green, hRatio: 0.06 },
+    { id: "temporal", label: "Temporal Proj.", sub: "T_fast ×8 + T_slow ×2", color: () => T.amber, hRatio: 0.08 },
+    { id: "input_lif", label: "Input LIF", sub: "continuous → spikes", color: () => T.purple, hRatio: 0.08 },
+    { id: "sensory", label: "Sensory Zone ×2", sub: "8-10% spike rate", color: () => T.teal, hRatio: 0.14 },
+    { id: "association", label: "Assoc. Zone ×2", sub: "MoE · Memory Cortex", color: () => T.purple, hRatio: 0.16 },
+    { id: "executive", label: "Executive Zone ×2", sub: "STDP · ReLU clamp", color: () => T.coral, hRatio: 0.14 },
+    { id: "readout_lif", label: "Readout LIF", sub: "extracts v_membrane", color: () => T.purple, hRatio: 0.08 },
+    { id: "ema", label: "EMA Readout", sub: "collapse T→1", color: () => T.teal, hRatio: 0.06 },
+    { id: "norm", label: "LayerNorm", sub: "normalize", color: () => T.faint, hRatio: 0.05 },
+    { id: "head", label: "LM Head", sub: "Linear → logits [128k]", color: () => T.amber, hRatio: 0.09 },
   ];
 
   // 300 data points tracing through the network
@@ -1648,9 +1845,9 @@ let gT = 0; // global time in seconds
       const yTop = curY;
       const yMid = yTop + layerH / 2;
       const col = layer.color();
-      const isBlock = layer.id === "blocks";
+      const isZone = ["sensory", "association", "executive"].includes(layer.id);
 
-      ctx.fillStyle = rgba(col, isBlock ? 0.06 : 0.03);
+      ctx.fillStyle = rgba(col, isZone ? 0.06 : 0.03);
       ctx.fillRect(pipeLeft, yTop + 1, pipeW, layerH - 2);
       ctx.fillStyle = rgba(col, 0.25);
       ctx.fillRect(pipeLeft, yTop, pipeW, 2);
@@ -1672,13 +1869,11 @@ let gT = 0; // global time in seconds
       ctx.stroke();
       ctx.setLineDash([]);
 
-      if (isBlock) {
-        const subColors = [T.blue, T.blue, T.teal, T.green, T.teal, T.blue];
-        for (let s = 1; s < 6; s++) {
-          const subY = yTop + (s / 6) * layerH;
-          ctx.fillStyle = rgba(subColors[s], 0.15);
-          ctx.fillRect(pipeLeft + 2, subY, pipeW - 4, 1);
-        }
+      if (isZone) {
+        // Draw sub-block divider within each 2-block zone
+        const subY = yTop + layerH / 2;
+        ctx.fillStyle = rgba(col, 0.18);
+        ctx.fillRect(pipeLeft + 2, subY, pipeW - 4, 1);
       }
 
       curY += layerH;
@@ -1729,7 +1924,7 @@ let gT = 0; // global time in seconds
           break;
         }
         case "embed": {
-          // [512] Dense expansion
+          // [496] Dense expansion
           targetX = centerSpread;
           targetAlpha = 0.6;
           targetSize = 2.2;
@@ -1737,7 +1932,7 @@ let gT = 0; // global time in seconds
           break;
         }
         case "temporal": {
-          //[10 x 512] Split into Fast + Slow lanes
+          //[10 x 496] Split into Fast + Slow lanes
           targetX =
             laneX +
             (Math.random() - 0.5) * (laneSpacing * (isFast ? 0.5 : 0.05));
@@ -1770,25 +1965,68 @@ let gT = 0; // global time in seconds
           }
           break;
         }
-        case "blocks": {
-          //[10 x 512] 97% Sparse Spikes
-          let jitter = isFast
+        case "sensory": {
+          // Sensory zone: 8-10% spike rate (sparsest processing)
+          let jitterS = isFast
             ? Math.sin(y * 0.1 + p.id) * 2
             : Math.sin(y * 0.05 + p.id) * 0.5;
-          targetX = laneX + jitter;
+          targetX = laneX + jitterS;
 
-          let isSpike = isFast
-            ? Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) >
-              1.85
-            : Math.sin(p.id * 9.3 + t * 0.8) + Math.cos(p.id * 4.2 + t * 0.5) >
-              1.95;
+          let isSpikeS = isFast
+            ? Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) > 1.88
+            : Math.sin(p.id * 9.3 + t * 0.8) + Math.cos(p.id * 4.2 + t * 0.5) > 1.96;
 
-          if (isSpike) {
+          if (isSpikeS) {
             targetAlpha = 1;
-            targetSize = isFast ? 3.5 : 2.5;
-            targetColor = T.coral; // Sparse Spike
+            targetSize = isFast ? 3.2 : 2.3;
+            targetColor = T.teal;
           } else {
             targetAlpha = isFast ? 0.03 : 0.06;
+            targetSize = 1;
+            targetColor = isFast ? T.teal : T.amber;
+          }
+          break;
+        }
+        case "association": {
+          // Association zone: 10-14% spike rate, MoE routing
+          let jitterA = isFast
+            ? Math.sin(y * 0.12 + p.id) * 2.5
+            : Math.sin(y * 0.06 + p.id) * 0.8;
+          targetX = laneX + jitterA;
+
+          let isSpikeA = isFast
+            ? Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) > 1.82
+            : Math.sin(p.id * 9.3 + t * 0.8) + Math.cos(p.id * 4.2 + t * 0.5) > 1.92;
+
+          if (isSpikeA) {
+            targetAlpha = 1;
+            targetSize = isFast ? 3.5 : 2.5;
+            targetColor = T.purple;
+          } else {
+            targetAlpha = isFast ? 0.04 : 0.07;
+            targetSize = 1;
+            targetColor = isFast ? T.teal : T.amber;
+          }
+          break;
+        }
+        case "executive": {
+          // Executive zone: 11-26% spike rate, STDP + ReLU clamp (no negatives)
+          let jitterE = isFast
+            ? Math.sin(y * 0.15 + p.id) * 3
+            : Math.sin(y * 0.08 + p.id) * 1.0;
+          targetX = laneX + jitterE;
+
+          let isSpikeE = isFast
+            ? Math.sin(p.id * 13.7 + t * 2.2) + Math.cos(p.id * 7.1 + t * 1.6) > 1.72
+            : Math.sin(p.id * 9.3 + t * 0.8) + Math.cos(p.id * 4.2 + t * 0.5) > 1.85;
+
+          if (isSpikeE) {
+            targetAlpha = 1;
+            targetSize = isFast ? 3.8 : 2.8;
+            targetColor = T.coral;
+          } else {
+            // Executive zone: force_nonneg=True, so silent neurons stay at 0 (not negative)
+            targetAlpha = 0;
             targetSize = 1;
             targetColor = isFast ? T.teal : T.amber;
           }
@@ -1805,7 +2043,7 @@ let gT = 0; // global time in seconds
           break;
         }
         case "ema": {
-          // [512] Collapse 10 temporal lanes back to 1
+          // [496] Collapse 10 temporal lanes back to 1
           targetX = centerSpread;
           targetAlpha = 0.7;
           targetSize = 2;
@@ -1813,7 +2051,7 @@ let gT = 0; // global time in seconds
           break;
         }
         case "norm": {
-          // [512] Normalization
+          // [496] Normalization
           targetX = centerSpread;
           targetAlpha = 0.5;
           targetSize = 2;

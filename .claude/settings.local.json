@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep \"\\\\.py$\")",
+      "Bash(grep -E \"\\\\.py$|nord\")",
+      "Bash(xxd index.html)",
+      "Bash(xxd)"
+    ]
+  }
+}
