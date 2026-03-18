@@ -324,6 +324,55 @@ header::before {
   line-height: 1.65;
 }
 
+.viz-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 1.2rem 0 1.5rem;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(29, 95, 212, 0.04),
+    rgba(10, 149, 128, 0.03)
+  );
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: rgba(29, 95, 212, 0.08);
+  color: var(--blue);
+  margin-top: 2px;
+}
+
+.status-pill.info {
+  background: rgba(29, 95, 212, 0.08);
+  color: var(--blue);
+}
+
+.status-pill.inactive {
+  background: rgba(224, 40, 74, 0.08);
+  border-color: rgba(224, 40, 74, 0.25);
+  color: var(--coral);
+}
+
 .hint-tag {
   position: absolute;
   top: 12px;
@@ -348,6 +397,13 @@ header::before {
   }
   50% {
     opacity: 1;
+  }
+}
+
+@media (max-width: 700px) {
+  .viz-note {
+    padding: 11px 12px;
+    font-size: 0.9rem;
   }
 }
 
