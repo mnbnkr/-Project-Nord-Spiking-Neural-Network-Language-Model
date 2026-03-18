@@ -129,6 +129,14 @@ function drawPill(ctx, x, y, text, opts = {}) {
   ctx.restore();
 }
 
+function measurePillWidth(ctx, text) {
+  ctx.save();
+  ctx.font = "700 10px IBM Plex Mono, monospace";
+  const width = ctx.measureText(text).width + 16;
+  ctx.restore();
+  return width;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // ANIMATION REGISTRY
 // ────────────────────────────────────────────────────────────────────────────
@@ -382,7 +390,7 @@ let gT = 0; // global time in seconds
     ctx.font = "600 10px IBM Plex Mono, monospace";
     ctx.textAlign = "right";
     ctx.fillStyle = rgba(T.coral, 0.9);
-    ctx.fillText("thresh 0.12", LBL - 12, thY + 4);
+    ctx.fillText("thresh 0.12", LBL - 12, thY - 5);
     ctx.fillStyle = T.muted;
     ctx.fillText("reset −0.1", LBL - 12, rstY + 4);
 
@@ -1244,8 +1252,19 @@ let gT = 0; // global time in seconds
       H = ch.h;
     const hc = [T.teal, T.amber, T.coral, T.purple];
     const isSmall = W < 560;
+    const fullTitle = "Memory Cortex: persistent write, temporal read, gated mix-back";
+    const pillText = isSmall ? "read gate only" : "read gate scales readout only";
+    const useTallHeader = (() => {
+      if (isSmall) return true;
+      ctx.save();
+      ctx.font = "bold 13px IBM Plex Mono, monospace";
+      const fullTitleWidth = ctx.measureText(fullTitle).width;
+      ctx.restore();
+      return 16 + fullTitleWidth > W - 14 - measurePillWidth(ctx, pillText) - 10;
+    })();
 
     const titleY = isSmall ? 22 : 24;
+    const pillLeft = W - 14 - measurePillWidth(ctx, pillText);
     ctx.fillStyle = T.muted;
     if (isSmall) {
       ctx.font = "bold 12px IBM Plex Mono, monospace";
@@ -1256,15 +1275,28 @@ let gT = 0; // global time in seconds
       ctx.fillText("persistent write + gated read", 16, titleY + 16);
     } else {
       ctx.font = "bold 13px IBM Plex Mono, monospace";
-      ctx.textAlign = "center";
+      const fullTitleWidth = ctx.measureText(fullTitle).width;
+      const titleRight = pillLeft - 10;
       ctx.fillStyle = T.muted;
-      ctx.fillText("Memory Cortex: persistent write, temporal read, gated mix-back", W / 2, titleY);
+      if (W / 2 + fullTitleWidth / 2 <= titleRight) {
+        ctx.textAlign = "center";
+        ctx.fillText(fullTitle, W / 2, titleY);
+      } else if (16 + fullTitleWidth <= titleRight) {
+        ctx.textAlign = "left";
+        ctx.fillText(fullTitle, 16, titleY);
+      } else {
+        ctx.textAlign = "left";
+        ctx.fillText("Memory Cortex", 16, titleY);
+        ctx.font = "600 10px IBM Plex Mono, monospace";
+        ctx.fillStyle = T.faint;
+        ctx.fillText("persistent write, temporal read, gated mix-back", 16, titleY + 16);
+      }
     }
     drawPill(
       ctx,
       W - 14,
       14,
-      isSmall ? "read gate only" : "read gate scales readout only",
+      pillText,
       {
         align: "right",
         bg: rgba(T.green, 0.08),
@@ -1273,7 +1305,7 @@ let gT = 0; // global time in seconds
       },
     );
 
-    const gridTop = isSmall ? 70 : 54;
+    const gridTop = useTallHeader ? 70 : 54;
     const gridLeft = 92;
     const cellW = Math.min(18, (W - 220) / COLS);
     const cellH = Math.min(18, (H - 270) / ROWS);
@@ -1510,22 +1542,30 @@ let gT = 0; // global time in seconds
     const W = ch.w,
       H = ch.h;
     const isSmall = W < 560;
+    const pillText = "inactive in current v4 path";
+    const pillLeft = W - 14 - measurePillWidth(ctx, pillText);
+    const titleText = isSmall
+      ? "STDP engine (inactive in current v4 path)"
+      : "Reward-modulated STDP engine (inactive in current v4 path)";
+    const compactTitle = isSmall ? "STDP engine" : "Reward-modulated STDP engine";
 
     ctx.fillStyle = T.muted;
     ctx.font = `bold ${isSmall ? 11 : 13}px IBM Plex Mono, monospace`;
-    ctx.textAlign = "center";
-    ctx.fillText(
-      isSmall
-        ? "STDP engine (inactive in current v4 path)"
-        : "Reward-modulated STDP engine (inactive in current v4 path)",
-      W / 2,
-      20,
-    );
+    const titleWidth = ctx.measureText(titleText).width;
+    const titleRight = pillLeft - 10;
+    if (W / 2 + titleWidth / 2 <= titleRight) {
+      ctx.textAlign = "center";
+      ctx.fillText(titleText, W / 2, 20);
+    } else {
+      const compactWidth = ctx.measureText(compactTitle).width;
+      ctx.textAlign = 16 + compactWidth <= titleRight ? "left" : "center";
+      ctx.fillText(compactTitle, ctx.textAlign === "left" ? 16 : W / 2, 20);
+    }
     drawPill(
       ctx,
       W - 14,
       10,
-      "inactive in current v4 path",
+      pillText,
       {
         align: "right",
         bg: rgba(T.coral, 0.08),

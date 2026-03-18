@@ -390,6 +390,11 @@ header::before {
   animation: blink 2.5s ease-in-out infinite;
 }
 
+.hint-tag-cascade {
+  left: 12px;
+  right: auto;
+}
+
 @keyframes blink {
   0%,
   100% {
